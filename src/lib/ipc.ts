@@ -17,6 +17,7 @@ import type {
   CuotaConDeuda,
   DeudaDetalle,
   DeudaResumen,
+  EstadoActualizacion,
   EstadoDeuda,
   EstadoPeriodo,
   EstadoRespaldo,
@@ -328,6 +329,22 @@ export function resolverCierre(
   recordar: boolean,
 ): Promise<void> {
   return invoke("resolver_cierre", { accion, recordar });
+}
+
+// ── actualización ────────────────────────────────────────────────────────────
+
+export function estadoActualizacion(): Promise<EstadoActualizacion> {
+  return invoke("estado_actualizacion");
+}
+
+/** Búsqueda manual: devuelve true si encontró y descargó una versión nueva. */
+export function buscarActualizacion(): Promise<boolean> {
+  return invoke("buscar_actualizacion");
+}
+
+/** Instala lo descargado y reinicia la app. No retorna. */
+export function instalarActualizacion(): Promise<void> {
+  return invoke("instalar_actualizacion");
 }
 
 /** Los comandos rechazan con un string; esto lo normaliza para mostrarlo. */

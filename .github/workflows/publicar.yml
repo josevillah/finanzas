@@ -1,0 +1,63 @@
+name: Publicar versión
+
+# Se dispara al empujar un tag como v0.2.0. El tag es la única señal: no se
+# publica nada por hacer push a main.
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publicar:
+    runs-on: windows-latest
+
+    permissions:
+      # tauri-action crea el release y sube los archivos.
+      contents: write
+
+    steps:
+      - name: Clonar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Preparar Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Caché de compilación de Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Verificar tipos
+        run: npm run typecheck
+
+      - name: Tests de Rust
+        run: cargo test
+        working-directory: ./src-tauri
+
+      - name: Compilar, firmar y publicar
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Sin estas dos el instalador sale sin firma y el updater lo rechaza
+          # en los equipos ya instalados.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Finanzas ${{ github.ref_name }}
+          releaseBody: |
+            Instalador para Windows.
+
+            Si ya tienes Finanzas instalado no necesitas descargar nada: la app
+            detecta esta versión sola y te ofrece instalarla.
+          releaseDraft: false
+          prerelease: false

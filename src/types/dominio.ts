@@ -377,6 +377,14 @@ export interface AjustesApp {
   atajo: string;
 }
 
+export interface EstadoActualizacion {
+  version_actual: string;
+  version_disponible: string | null;
+  /** Notas del release, en markdown crudo. */
+  notas: string | null;
+  lista_para_instalar: boolean;
+}
+
 export const ETIQUETAS_ACCION_CIERRE: Record<AccionCierre, string> = {
   preguntar: "Preguntarme cada vez",
   bandeja: "Dejarla corriendo en la bandeja",

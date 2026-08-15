@@ -37,6 +37,15 @@ pub struct EstadoApp {
     pub atajo_registrado: AtomicBool,
 }
 
+/// Marca que la aplicación va a cerrarse de verdad, para que el interceptor de
+/// `CloseRequested` deje pasar el cierre. La usan la salida explícita y la
+/// instalación de una actualización, que reemplaza el ejecutable en marcha.
+pub fn marcar_salida_real(app: &tauri::AppHandle) {
+    app.state::<EstadoApp>()
+        .salida_real
+        .store(true, Ordering::SeqCst);
+}
+
 impl EstadoApp {
     pub fn conn(&self) -> MutexGuard<'_, Connection> {
         // Si un comando entró en pánico con el lock tomado, preferimos
@@ -54,6 +63,7 @@ pub fn run() {
             ventana::mostrar_y_enfocar(app);
         }))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![ARG_MINIMIZADO]),
@@ -78,6 +88,7 @@ pub fn run() {
                 salida_real: AtomicBool::new(false),
                 atajo_registrado: AtomicBool::new(false),
             });
+            app.manage(comandos::actualizacion::EstadoActualizador::nuevo());
 
             // Copia local del día si todavía no existe. Cubre a quien deja la
             // app en la bandeja durante semanas y nunca dispara el cierre.
@@ -104,6 +115,18 @@ pub fn run() {
                 }
 
                 registrar_atajo_global(app.handle())?;
+
+                // Chequeo de actualizaciones en segundo plano. Sin internet o
+                // con GitHub caído no pasa nada: la app funciona igual y no se
+                // molesta al usuario con un error que no puede resolver.
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    match comandos::actualizacion::buscar_y_descargar(&handle).await {
+                        Ok(true) => eprintln!("[updater] actualización descargada"),
+                        Ok(false) => {}
+                        Err(e) => eprintln!("[updater] sin novedades: {e}"),
+                    }
+                });
             }
 
             Ok(())
@@ -175,6 +198,10 @@ pub fn run() {
             comandos::configuracion::fijar_accion_cierre,
             comandos::configuracion::fijar_autostart,
             comandos::configuracion::resolver_cierre,
+            // actualización
+            comandos::actualizacion::estado_actualizacion,
+            comandos::actualizacion::buscar_actualizacion,
+            comandos::actualizacion::instalar_actualizacion,
         ])
         .run(tauri::generate_context!())
         .expect("error al iniciar la aplicación");

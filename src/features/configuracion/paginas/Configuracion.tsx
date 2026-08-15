@@ -1,3 +1,4 @@
+import { Boton } from "@/components/ui/Boton";
 import { Cargando, ErrorCarga } from "@/components/ui/Estados";
 import { Insignia } from "@/components/ui/Insignia";
 import { Interruptor } from "@/components/ui/Interruptor";
@@ -8,6 +9,12 @@ import {
   ETIQUETAS_ACCION_CIERRE,
   type AccionCierre,
 } from "@/types/dominio";
+
+import {
+  useBuscarActualizacion,
+  useEstadoActualizacion,
+  useInstalarActualizacion,
+} from "@/features/actualizacion/hooks";
 
 import { useAjustes, useFijarAccionCierre, useFijarAutostart } from "../hooks";
 
@@ -124,6 +131,63 @@ export function Configuracion() {
           </p>
         ) : null}
       </div>
+
+      <BloqueVersion />
+    </div>
+  );
+}
+
+/** Versión instalada y búsqueda manual de actualizaciones. */
+function BloqueVersion() {
+  const { data } = useEstadoActualizacion();
+  const buscar = useBuscarActualizacion();
+  const instalar = useInstalarActualizacion();
+
+  return (
+    <div className="tarjeta space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-medium">Versión</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            La app busca actualizaciones sola al abrirse y las descarga en segundo plano. Nunca
+            se instala nada sin que tú lo aceptes.
+          </p>
+        </div>
+
+        <span className="flex items-center gap-3">
+          <kbd className="rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1 font-mono text-sm dark:border-slate-600 dark:bg-slate-800">
+            v{data?.version_actual ?? "—"}
+          </kbd>
+          <Boton
+            variante="secundario"
+            tamano="sm"
+            disabled={buscar.isPending}
+            onClick={() => buscar.mutate()}
+          >
+            {buscar.isPending ? "Buscando…" : "Buscar actualizaciones"}
+          </Boton>
+        </span>
+      </div>
+
+      {data?.lista_para_instalar ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-indigo-50 px-3 py-2 text-sm text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300">
+          <span>
+            La versión <strong>{data.version_disponible}</strong> ya está descargada.
+          </span>
+          <Boton tamano="sm" disabled={instalar.isPending} onClick={() => instalar.mutate()}>
+            {instalar.isPending ? "Instalando…" : "Instalar y reiniciar"}
+          </Boton>
+        </div>
+      ) : buscar.isSuccess && !buscar.data ? (
+        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+          Ya tienes la última versión.
+        </p>
+      ) : null}
+
+      {/* La búsqueda manual sí informa el error: el usuario apretó un botón y
+          espera una respuesta. El chequeo automático falla en silencio. */}
+      {buscar.error ? <MensajeError error={buscar.error} /> : null}
+      {instalar.error ? <MensajeError error={instalar.error} /> : null}
     </div>
   );
 }

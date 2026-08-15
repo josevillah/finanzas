@@ -1,6 +1,7 @@
 //! Capa de comandos de Tauri: valida la entrada, abre transacciones y delega.
 //! Nada de lógica de cálculo acá; eso vive en `dominio`.
 
+pub mod actualizacion;
 pub mod analisis;
 pub mod categorias;
 pub mod configuracion;

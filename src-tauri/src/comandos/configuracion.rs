@@ -1,6 +1,7 @@
 use std::sync::atomic::Ordering;
 
 use tauri::{AppHandle, Manager, State};
+
 use tauri_plugin_autostart::ManagerExt;
 
 use crate::error::{AppError, Resultado};
@@ -98,17 +99,16 @@ pub fn ejecutar_cierre(app: &AppHandle, accion: AccionCierre) {
 /// interceptor volvería a bloquear el cierre y la app quedaría inmatable salvo
 /// desde el Administrador de tareas.
 pub fn salir(app: &AppHandle) {
-    let estado = app.state::<EstadoApp>();
-
     // Última copia local antes de irse, con el trabajo del día incluido. Si
     // fallara, no es motivo para dejar al usuario sin poder cerrar.
     {
+        let estado = app.state::<EstadoApp>();
         let conn = estado.conn();
         if let Err(e) = crate::comandos::respaldo::respaldo_automatico(app, &conn, true) {
             eprintln!("[respaldo] no se pudo guardar la copia automática al salir: {e}");
         }
     }
 
-    estado.salida_real.store(true, Ordering::SeqCst);
+    crate::marcar_salida_real(app);
     app.exit(0);
 }

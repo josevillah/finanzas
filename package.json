@@ -9,6 +9,7 @@
     "dev:vite": "vite",
     "build:vite": "npm run typecheck && vite build",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json",
+    "version:sync": "node scripts/version.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },

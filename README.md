@@ -52,6 +52,54 @@ npm run typecheck
 cd src-tauri && cargo test
 ```
 
+## Cómo publicar una versión
+
+La app se actualiza sola desde GitHub Releases: los equipos instalados no
+necesitan descargar nada a mano.
+
+**1. Subir la versión en los tres archivos.** `package.json`, `Cargo.toml` y
+`tauri.conf.json` tienen que decir lo mismo, o el updater compara mal:
+
+```bash
+npm run version:sync -- 0.2.0
+```
+
+**2. Commit, tag y push.** El tag es lo que dispara la publicación:
+
+```bash
+git commit -am "v0.2.0" && git tag v0.2.0 && git push --follow-tags
+```
+
+**3. Esperar al workflow.** `.github/workflows/publicar.yml` verifica tipos,
+corre los tests, compila, firma el instalador y crea el release con el `.exe`
+y el `latest.json`. Tarda unos 10 minutos.
+
+**4. Verificar.** Abrir la app en un equipo con la versión anterior: en menos de
+un minuto debería aparecer el aviso de que hay una versión nueva descargada.
+
+### La clave de firma
+
+- Vive en `%USERPROFILE%\.tauri\finanzas.key` y **nunca se commitea**
+  (`.gitignore` cubre `*.key`).
+- La privada y su contraseña están cargadas como secretos del repositorio:
+  `TAURI_SIGNING_PRIVATE_KEY` y `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+- La pública está en `tauri.conf.json`, en `plugins.updater.pubkey`.
+
+**Si se pierde la clave privada, las instalaciones existentes quedan sin poder
+actualizarse nunca más.** Un instalador firmado con otra clave es rechazado por
+las apps ya instaladas; habría que desinstalar y reinstalar a mano en cada
+equipo. Guarda una copia de `finanzas.key` fuera del computador.
+
+### Qué pasa en la app
+
+- Al abrir, busca actualizaciones en segundo plano y descarga en silencio.
+- Cuando termina de bajar, aparece un aviso discreto arriba con el número de
+  versión y las novedades. **Nunca instala sin confirmación**: el instalador
+  reemplaza el ejecutable en marcha, así que la app se cierra sí o sí.
+- Sin internet o con GitHub caído no muestra nada: la app funciona igual.
+- En Preferencias hay un botón para buscar manualmente, y ese sí informa el
+  error si falla.
+
 ## Dónde quedan los datos
 
 `%APPDATA%\cl.local.finanzas\finanzas.db`

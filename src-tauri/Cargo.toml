@@ -17,6 +17,7 @@ tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-autostart = "2"
+tauri-plugin-updater = "2"
 # Con la app viviendo en la bandeja, el doble clic en el acceso directo abriría
 # un segundo proceso sobre la misma base. Este plugin le da el foco al que ya
 # está corriendo.

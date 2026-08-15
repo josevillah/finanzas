@@ -107,6 +107,16 @@ transacción, idempotente, corre en cada arranque. Para agregar una: crear el
 - Evolución del gasto por categoría en ventanas de 6 / 12 / 24 meses
 - Reporte de gastos hormiga con variación contra el mes anterior y contra el promedio
 
+### Extra — Auto-actualización
+- `tauri-plugin-updater` contra `josevillah/finanzas` (repo público) vía
+  GitHub Releases. Sin backend propio
+- Chequeo al arrancar en segundo plano, descarga silenciosa, instalación solo
+  con confirmación del usuario
+- Instalador NSIS con `installMode: passive`, firmado en CI
+- `.github/workflows/publicar.yml` se dispara con un tag `v*`
+- `npm run version:sync -- X.Y.Z` mantiene la versión igual en los tres archivos
+- Tres capas de protección de datos al migrar (ver decisiones más abajo)
+
 ### Extra — Segundo plano y bandeja
 - Cerrar con la X pregunta: dejar en bandeja o salir, con "recordar mi elección"
 - Ícono de bandeja con menú Abrir / Gasto rápido / Salir
@@ -184,6 +194,22 @@ muestra igual en vez de dejar la app inalcanzable.
 `unminimize()` → `set_focus()`. En Windows `unminimize()` sobre una ventana
 oculta no hace nada, y sin `set_focus()` la ventana aparece detrás de la
 aplicación activa y el input de captura rápida no recibe el teclado.
+
+**Instalar una actualización levanta `salida_real` antes de reiniciar.** El
+instalador reemplaza el ejecutable en marcha, así que la app debe cerrarse; sin
+la bandera, el interceptor de cierre de la Feature A bloquearía el reinicio y
+la actualización quedaría a medio aplicar. Es el punto donde las features A y B
+se tocan.
+
+**El chequeo automático falla en silencio, el manual informa.** Sin internet no
+tiene sentido molestar a alguien con un error que no puede resolver; pero si
+apretó el botón de "Buscar actualizaciones", espera una respuesta.
+
+**Las tres capas de protección de datos** viven en `db::iniciar`, en este orden:
+rechazar una base más nueva que el binario → respaldar antes de migrar → migrar.
+Más la copia automática diaria con rotación de 5. La copia automática **no**
+actualiza la marca del respaldo manual: vive en el mismo disco y no protege
+contra que el disco falle, que es justo lo que el recordatorio busca evitar.
 
 **`atajo_registrado` se expone en Preferencias.** Si otra app tiene tomado
 Ctrl+Shift+G, el registro falla y en release nadie ve un `eprintln!`. Con la app

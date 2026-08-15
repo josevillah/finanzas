@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { Boton } from "@/components/ui/Boton";
+import { AvisoActualizacion } from "@/features/actualizacion/componentes/AvisoActualizacion";
 import { useCaptura } from "@/features/gastos/CapturaContexto";
 import { AvisoRespaldo } from "@/features/respaldo/componentes/AvisoRespaldo";
 import { cn } from "@/lib/cn";
@@ -88,6 +89,7 @@ export function Shell() {
 
       <main className="flex-1 overflow-x-hidden px-4 pb-20 pt-6 md:px-8 md:pb-8">
         <div className="mx-auto max-w-6xl">
+          <AvisoActualizacion />
           <AvisoRespaldo />
           <Outlet />
         </div>
