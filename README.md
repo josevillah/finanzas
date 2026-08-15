@@ -264,6 +264,28 @@ existe para que la copia salga del computador.
 El orden de arranque es `abrir → verificar → respaldar → migrar`, y está en
 `db::iniciar`. Invertir cualquier paso deja al usuario sin red.
 
+### Reiniciar datos
+
+Preferencias → Zona de riesgo deja la app como recién instalada. Antes de
+borrar nada guarda un respaldo en
+`respaldos/finanzas-pre-reinicio-{fecha-hora}.db`, **fuera de la rotación de las
+copias automáticas**: si entrara, cinco días después lo barrería una copia nueva
+y se perdería la única vuelta atrás. Si el respaldo falla, no se borra nada.
+
+Se vacían `movimientos`, `cuotas`, `deudas`, `presupuestos` y `periodos` en una
+sola transacción, y después se ejecuta `VACUUM` (que no puede correr dentro de
+una). Se conservan:
+
+- **Las categorías de fábrica**, marcadas con `es_semilla`. Se reactivan las
+  desactivadas y se borran solo las creadas por el usuario. No se les restaura
+  el nombre ni el color: eso es una personalización, no un dato financiero
+- **Los servicios recurrentes**, salvo que se marque la casilla. Si uno apuntaba
+  a una categoría que se borra, queda con `categoria_id` nulo en vez de abortar
+- **Las preferencias**: tema, acción de cierre, autostart y toggles de respaldo
+
+La confirmación exige escribir `REINICIAR` en mayúsculas, y **Rust lo valida
+también**: la interfaz se puede saltar, el comando no.
+
 ### Respaldo y restauración
 
 Ambos usan `Connection::backup` / `Connection::restore` de SQLite, que copian

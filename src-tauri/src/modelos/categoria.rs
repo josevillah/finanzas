@@ -47,10 +47,12 @@ pub struct Categoria {
     pub color: Option<String>,
     pub activa: bool,
     pub codigo: Option<String>,
+    /// Viene de fábrica. El reinicio de datos conserva estas y borra el resto.
+    pub es_semilla: bool,
 }
 
 impl Categoria {
-    pub const COLUMNAS: &'static str = "id, nombre, tipo, color, activa, codigo";
+    pub const COLUMNAS: &'static str = "id, nombre, tipo, color, activa, codigo, es_semilla";
 
     pub fn desde_fila(fila: &Row<'_>) -> rusqlite::Result<Self> {
         let tipo_txt: String = fila.get(2)?;
@@ -65,6 +67,7 @@ impl Categoria {
             color: fila.get(3)?,
             activa: fila.get::<_, i64>(4)? != 0,
             codigo: fila.get(5)?,
+            es_semilla: fila.get::<_, i64>(6)? != 0,
         })
     }
 }

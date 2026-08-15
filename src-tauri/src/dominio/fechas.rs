@@ -14,6 +14,12 @@ pub fn a_iso(fecha: NaiveDate) -> String {
     fecha.format(FORMATO_ISO).to_string()
 }
 
+/// Marca de tiempo para nombres de archivo: 'YYYY-MM-DD-HHMMSS'.
+/// Con solo la fecha, dos respaldos del mismo día se pisarían entre sí.
+pub fn sello_de_tiempo() -> String {
+    Local::now().format("%Y-%m-%d-%H%M%S").to_string()
+}
+
 pub fn desde_iso(texto: &str) -> Resultado<NaiveDate> {
     NaiveDate::parse_from_str(texto.trim(), FORMATO_ISO)
         .map_err(|_| AppError::validacion(format!("Fecha inválida: '{texto}'. Se espera YYYY-MM-DD.")))

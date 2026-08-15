@@ -44,6 +44,9 @@ mod tests {
         assert!(es_automatico("finanzas-auto-2026-08-15.db"));
         assert!(!es_automatico("finanzas-pre-v4.db"));
         assert!(!es_automatico("finanzas.db"));
+        // El respaldo previo a un reinicio debe quedar fuera de la rotación:
+        // es la única vuelta atrás y no puede barrerlo una copia posterior.
+        assert!(!es_automatico("finanzas-pre-reinicio-2026-08-15-143012.db"));
         assert!(!es_automatico("finanzas-auto-2026-08-15.db.tmp"));
     }
 

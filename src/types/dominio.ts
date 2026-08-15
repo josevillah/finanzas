@@ -377,6 +377,28 @@ export interface AjustesApp {
   atajo: string;
 }
 
+/** Texto exacto que hay que escribir para confirmar el reinicio. */
+export const CONFIRMACION_REINICIO = "REINICIAR";
+
+export interface ResumenReinicio {
+  deudas: number;
+  cuotas: number;
+  movimientos: number;
+  presupuestos: number;
+  periodos: number;
+  servicios: number;
+  categorias_propias: number;
+  total: number;
+}
+
+export interface ResultadoReinicio {
+  ruta_respaldo: string;
+  registros_borrados: number;
+  servicios_borrados: number;
+  categorias_borradas: number;
+  categorias_reactivadas: number;
+}
+
 export interface EstadoActualizacion {
   version_actual: string;
   version_disponible: string | null;

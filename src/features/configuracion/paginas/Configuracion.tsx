@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { Boton } from "@/components/ui/Boton";
 import { Cargando, ErrorCarga } from "@/components/ui/Estados";
 import { Insignia } from "@/components/ui/Insignia";
@@ -16,6 +18,7 @@ import {
   useInstalarActualizacion,
 } from "@/features/actualizacion/hooks";
 
+import { DialogoReinicio } from "../componentes/DialogoReinicio";
 import { useAjustes, useFijarAccionCierre, useFijarAutostart } from "../hooks";
 
 const ACCIONES: AccionCierre[] = ["preguntar", "bandeja", "salir"];
@@ -133,6 +136,42 @@ export function Configuracion() {
       </div>
 
       <BloqueVersion />
+      <ZonaDeRiesgo />
+    </div>
+  );
+}
+
+/**
+ * Sección aparte, con separador y borde rojo, para que nadie la pulse
+ * navegando entre las opciones normales.
+ */
+function ZonaDeRiesgo() {
+  const [abierto, setAbierto] = useState(false);
+
+  return (
+    <div className="pt-4">
+      <div className="mb-4 border-t border-slate-200 dark:border-slate-800" />
+
+      <div className="tarjeta space-y-3 border-rose-300 dark:border-rose-900">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 font-medium text-rose-700 dark:text-rose-400">
+              Zona de riesgo
+            </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Borra tus deudas, gastos, presupuestos y meses, y deja la app como recién instalada.
+              Las categorías de fábrica y tus preferencias se conservan. Antes de borrar se guarda
+              un respaldo automático.
+            </p>
+          </div>
+
+          <Boton variante="peligro" onClick={() => setAbierto(true)}>
+            Reiniciar mis datos…
+          </Boton>
+        </div>
+      </div>
+
+      <DialogoReinicio abierto={abierto} onCerrar={() => setAbierto(false)} />
     </div>
   );
 }

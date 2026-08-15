@@ -33,7 +33,9 @@ import type {
   Periodo,
   ReporteHormiga,
   ResultadoExportacion,
+  ResultadoReinicio,
   ResultadoRestauracion,
+  ResumenReinicio,
   ResumenPeriodo,
   ResumenPresupuesto,
   ResumenServicios,
@@ -345,6 +347,23 @@ export function buscarActualizacion(): Promise<boolean> {
 /** Instala lo descargado y reinicia la app. No retorna. */
 export function instalarActualizacion(): Promise<void> {
   return invoke("instalar_actualizacion");
+}
+
+// ── reinicio de datos ────────────────────────────────────────────────────────
+
+export function resumenReinicio(): Promise<ResumenReinicio> {
+  return invoke("resumen_reinicio");
+}
+
+/** `confirmacion` debe ser exactamente "REINICIAR"; Rust también lo valida. */
+export function reiniciarDatos(datos: {
+  confirmacion: string;
+  borrarServicios: boolean;
+}): Promise<ResultadoReinicio> {
+  return invoke("reiniciar_datos", {
+    confirmacion: datos.confirmacion,
+    borrarServicios: datos.borrarServicios,
+  });
 }
 
 /** Los comandos rechazan con un string; esto lo normaliza para mostrarlo. */

@@ -9,6 +9,7 @@ pub mod deuda;
 pub mod movimiento;
 pub mod periodo;
 pub mod presupuesto;
+pub mod reinicio;
 pub mod reporte;
 pub mod respaldo;
 pub mod servicio;

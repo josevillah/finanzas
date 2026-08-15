@@ -202,6 +202,9 @@ pub fn run() {
             comandos::actualizacion::estado_actualizacion,
             comandos::actualizacion::buscar_actualizacion,
             comandos::actualizacion::instalar_actualizacion,
+            // reinicio de datos
+            comandos::reinicio::resumen_reinicio,
+            comandos::reinicio::reiniciar_datos,
         ])
         .run(tauri::generate_context!())
         .expect("error al iniciar la aplicación");
