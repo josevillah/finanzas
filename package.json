@@ -1,11 +1,12 @@
 {
   "name": "finanzas",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
+    "build:local": "tauri build --config {\\\"bundle\\\":{\\\"createUpdaterArtifacts\\\":false}}",
     "dev:vite": "vite",
     "build:vite": "npm run typecheck && vite build",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json",

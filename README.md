@@ -39,10 +39,23 @@ npm run dev
 Levanta Vite y abre la ventana de Tauri con recarga en caliente.
 
 ```bash
+npm run build:local
+```
+
+Instalador para probar en tu propio equipo. **No sirve para distribuir**: sale
+sin firmar, así que las apps ya instaladas lo rechazarían.
+
+```bash
 npm run build
 ```
 
-Genera el instalador en `src-tauri/target/release/bundle/`.
+Instalador firmado, con los artefactos que consume el updater. Falla si no están
+en el entorno `TAURI_SIGNING_PRIVATE_KEY` y `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+— es a propósito, para que no se distribuya un build sin firma por descuido.
+**Lo normal es no correrlo a mano**: de esto se encarga el workflow al empujar
+un tag.
+
+Ambos dejan el resultado en `src-tauri/target/release/bundle/nsis/`.
 
 ```bash
 npm run typecheck
