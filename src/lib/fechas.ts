@@ -37,9 +37,25 @@ export function formatearMesCorto(anio: number, mes: number): string {
   return `${MESES_CORTOS[mes - 1]} ${anio}`;
 }
 
-/** "2026-09-05" -> "septiembre de 2026". */
+/** "2026-09-05" -> "septiembre de 2026". Para usar dentro de una frase. */
 export function formatearMesLargo(anio: number, mes: number): string {
   return `${MESES[mes - 1]} de ${anio}`;
+}
+
+/**
+ * Mayúscula solo en la primera letra, dejando el resto intacto.
+ *
+ * No se usa `text-transform: capitalize` de CSS porque capitaliza **cada**
+ * palabra: "agosto de 2026" salía como "Agosto De 2026".
+ */
+export function capitalizar(texto: string): string {
+  if (!texto) return texto;
+  return texto.charAt(0).toLocaleUpperCase("es-CL") + texto.slice(1);
+}
+
+/** "2026-09-05" -> "Septiembre de 2026". Para títulos y encabezados. */
+export function formatearMesTitulo(anio: number, mes: number): string {
+  return capitalizar(formatearMesLargo(anio, mes));
 }
 
 export function hoyISO(): string {

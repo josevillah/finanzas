@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 import { Moneda } from "@/components/Moneda";
 import { Cargando, ErrorCarga, Vacio } from "@/components/ui/Estados";
-import { describirMeses, formatearFecha, partirISO, formatearMesLargo } from "@/lib/fechas";
+import { describirMeses, formatearFecha, formatearMesTitulo, partirISO } from "@/lib/fechas";
 
 import { useFechaLibertad } from "../hooks";
 
@@ -38,8 +38,8 @@ export function FechaLibertad() {
         <p className="text-xs font-medium uppercase tracking-wide text-indigo-200">
           Última cuota vigente
         </p>
-        <p className="mt-1 text-3xl font-semibold capitalize">
-          {formatearMesLargo(partes.anio, partes.mes)}
+        <p className="mt-1 text-3xl font-semibold">
+          {formatearMesTitulo(partes.anio, partes.mes)}
         </p>
         <p className="mt-2 text-sm text-indigo-100">
           Te quedan {describirMeses(data.meses_restantes)} y{" "}

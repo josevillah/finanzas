@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
 import { Boton } from "@/components/ui/Boton";
-import { formatearMesLargo, mesActual } from "@/lib/fechas";
+import { formatearMesTitulo, mesActual } from "@/lib/fechas";
 
 interface ValorMes {
   anio: number;
@@ -60,8 +60,8 @@ export function SelectorMes() {
       <Boton variante="secundario" tamano="sm" onClick={() => irMes(-1)} aria-label="Mes anterior">
         ←
       </Boton>
-      <span className="min-w-44 text-center text-sm font-medium capitalize">
-        {formatearMesLargo(anio, mes)}
+      <span className="min-w-44 text-center text-sm font-medium">
+        {formatearMesTitulo(anio, mes)}
       </span>
       <Boton variante="secundario" tamano="sm" onClick={() => irMes(1)} aria-label="Mes siguiente">
         →
