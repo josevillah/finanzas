@@ -376,6 +376,39 @@ pub fn hormiga_por_categoria(
     Ok(filas.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// Mueve a otra categoría los gastos que un servicio generó en un período.
+/// Devuelve cuántos movió.
+pub fn reclasificar_por_servicio(
+    conn: &Connection,
+    servicio_id: i64,
+    periodo_id: i64,
+    categoria_id: Option<i64>,
+) -> Resultado<usize> {
+    Ok(conn.execute(
+        "UPDATE movimientos SET categoria_id = ?3
+         WHERE servicio_id = ?1 AND periodo_id = ?2",
+        params![servicio_id, periodo_id, categoria_id],
+    )?)
+}
+
+/// Pone al día el gasto estimado de un servicio en un período cuando cambia su
+/// monto de referencia.
+///
+/// Solo toca los que siguen marcados como estimados: si el usuario ya confirmó
+/// el monto real con "Cambiar precio", ese dato es suyo y no se pisa.
+pub fn actualizar_estimado_de_servicio(
+    conn: &Connection,
+    servicio_id: i64,
+    periodo_id: i64,
+    monto: Monto,
+) -> Resultado<usize> {
+    Ok(conn.execute(
+        "UPDATE movimientos SET monto = ?3
+         WHERE servicio_id = ?1 AND periodo_id = ?2 AND es_estimado = 1",
+        params![servicio_id, periodo_id, monto],
+    )?)
+}
+
 /// Ids de servicios que ya tienen algún gasto en el período. Se usa para no
 /// generar dos veces el gasto estimado.
 pub fn servicios_con_gasto(conn: &Connection, periodo_id: i64) -> Resultado<Vec<i64>> {

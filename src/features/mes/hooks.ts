@@ -1,5 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
+import { claves, useInvalidar } from "@/lib/consultas";
 import * as ipc from "@/lib/ipc";
 import type {
   EstadoPeriodo,
@@ -9,45 +10,33 @@ import type {
 } from "@/types/dominio";
 
 /**
- * Un movimiento afecta al resumen del mes y a la comparación de servicios.
- * Los pagos de cuota además tocan las vistas de deudas, por eso el conjunto
- * completo se invalida desde un solo lugar.
+ * Qué se invalida con cada cosa está en `RELACIONES`, en `lib/consultas.ts`.
+ * Acá solo se declara qué pasó.
  */
 export function useInvalidarMes() {
-  const qc = useQueryClient();
-  return () => {
-    qc.invalidateQueries({ queryKey: ["movimientos"] });
-    qc.invalidateQueries({ queryKey: ["resumen-periodo"] });
-    qc.invalidateQueries({ queryKey: ["resumen-servicios"] });
-    qc.invalidateQueries({ queryKey: ["periodo"] });
-    qc.invalidateQueries({ queryKey: ["periodos"] });
-    qc.invalidateQueries({ queryKey: ["carga-financiera"] });
-    // El presupuesto y los reportes se leen contra los mismos movimientos.
-    qc.invalidateQueries({ queryKey: ["presupuesto"] });
-    qc.invalidateQueries({ queryKey: ["evolucion-gastos"] });
-    qc.invalidateQueries({ queryKey: ["reporte-hormiga"] });
-  };
+  const invalidar = useInvalidar();
+  return () => invalidar("movimiento", "periodo");
 }
 
 // ── lecturas ─────────────────────────────────────────────────────────────────
 
 export function useResumenPeriodo(anio: number, mes: number) {
   return useQuery({
-    queryKey: ["resumen-periodo", anio, mes],
+    queryKey: claves.resumenPeriodo(anio, mes),
     queryFn: () => ipc.resumenPeriodo(anio, mes),
   });
 }
 
 export function usePeriodos() {
   return useQuery({
-    queryKey: ["periodos"],
+    queryKey: claves.periodos(),
     queryFn: () => ipc.listarPeriodos(),
   });
 }
 
 export function useMovimientos(anio: number, mes: number, filtro: FiltroMovimientos) {
   return useQuery({
-    queryKey: ["movimientos", anio, mes, filtro],
+    queryKey: claves.movimientos(anio, mes, filtro),
     queryFn: () => ipc.listarMovimientos(anio, mes, filtro),
   });
 }
@@ -103,10 +92,11 @@ export function useCapturaRapida() {
 }
 
 export function useCambiarEstadoPeriodo() {
-  const invalidar = useInvalidarMes();
+  const invalidar = useInvalidar();
   return useMutation({
     mutationFn: ({ anio, mes, estado }: { anio: number; mes: number; estado: EstadoPeriodo }) =>
       ipc.cambiarEstadoPeriodo(anio, mes, estado),
-    onSuccess: invalidar,
+    // Cerrar o reabrir un mes no cambia sus movimientos, solo si se aceptan.
+    onSuccess: () => invalidar("periodo"),
   });
 }

@@ -1,7 +1,7 @@
 use tauri::State;
 
 use crate::error::{AppError, Resultado};
-use crate::modelos::categoria::{Categoria, NuevaCategoria};
+use crate::modelos::categoria::{Categoria, NuevaCategoria, TipoCategoria};
 use crate::repos;
 use crate::EstadoApp;
 
@@ -29,6 +29,19 @@ pub fn actualizar_categoria(
 ) -> Resultado<()> {
     validar(&datos)?;
     let guard = estado.conn();
+
+    let actual = repos::categorias::obtener(&guard, id)?;
+
+    // Las categorías que el sistema ubica por código conservan su tipo.
+    // Marcar "Deudas y créditos" como hormiga haría que cada pago de cuota
+    // contara como gasto hormiga e inflaría el reporte, el total del mes y la
+    // comparación contra el promedio.
+    if !puede_cambiar_tipo(&actual, datos.tipo) {
+        return Err(AppError::conflicto(
+            "Esta categoría la usa el sistema y no puede cambiar de tipo. Puedes renombrarla, cambiarle el color o desactivarla.",
+        ));
+    }
+
     repos::categorias::actualizar(&guard, id, &datos)
 }
 
@@ -55,6 +68,15 @@ pub fn eliminar_categoria(estado: State<'_, EstadoApp>, id: i64) -> Resultado<()
     }
 
     repos::categorias::eliminar(&guard, id)
+}
+
+/// Las categorías que el sistema ubica por código conservan su tipo.
+///
+/// Cambiar "Deudas y créditos" a hormiga haría que cada pago de cuota contara
+/// como gasto hormiga: se inflarían el reporte de hormigas, el total del mes y
+/// la comparación contra el promedio. El resto de sus campos sí es editable.
+pub fn puede_cambiar_tipo(actual: &Categoria, nuevo: TipoCategoria) -> bool {
+    actual.codigo.is_none() || actual.tipo == nuevo
 }
 
 fn validar(datos: &NuevaCategoria) -> Resultado<()> {

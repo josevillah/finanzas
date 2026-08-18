@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { claves } from "@/lib/consultas";
 import * as ipc from "@/lib/ipc";
 
 export function useEstadoRespaldo() {
   return useQuery({
-    queryKey: ["estado-respaldo"],
+    queryKey: claves.estadoRespaldo(),
     queryFn: () => ipc.estadoRespaldo(),
     // El recordatorio se muestra en toda la app, así que conviene fresco.
     staleTime: 60_000,
@@ -15,7 +16,7 @@ export function useRespaldar() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (destino: string) => ipc.respaldarBase(destino),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["estado-respaldo"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: claves.estadoRespaldo() }),
   });
 }
 
@@ -23,7 +24,7 @@ export function useFijarRespaldoAutomatico() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (activo: boolean) => ipc.fijarRespaldoAutomatico(activo),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["estado-respaldo"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: claves.estadoRespaldo() }),
   });
 }
 

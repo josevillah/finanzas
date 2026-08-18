@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+use chrono::{Datelike, NaiveDate};
+use rusqlite::Connection;
 use tauri::State;
 
 use crate::dominio::fechas;
@@ -31,6 +33,14 @@ pub fn crear_servicio(estado: State<'_, EstadoApp>, datos: NuevoServicio) -> Res
     repos::servicios::insertar(&guard, &datos, &alta)
 }
 
+/// Ajustes que arrastró editar un servicio sobre los gastos que ya había
+/// generado en el mes en curso.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CambiosServicio {
+    pub reclasificados: usize,
+    pub estimados_actualizados: usize,
+}
+
 #[tauri::command]
 pub fn actualizar_servicio(
     estado: State<'_, EstadoApp>,
@@ -38,8 +48,76 @@ pub fn actualizar_servicio(
     datos: NuevoServicio,
 ) -> Resultado<()> {
     validar(&datos)?;
-    let guard = estado.conn();
-    repos::servicios::actualizar(&guard, id, &datos)
+
+    let mut guard = estado.conn();
+    let tx = guard.transaction()?;
+
+    // El servicio y sus gastos se ajustan juntos: si algo falla, no queda el
+    // servicio en una categoría y sus movimientos en otra.
+    aplicar_actualizacion(&tx, id, &datos, fechas::hoy())?;
+
+    tx.commit()?;
+    Ok(())
+}
+
+/// Actualiza el servicio y pone al día los gastos que ya generó **en el mes
+/// calendario en curso**.
+///
+/// `hoy` llega por parámetro en vez de leerse adentro para que los tests
+/// puedan fijar el mes; si no, dependerían del día en que se ejecutan.
+///
+/// Los meses anteriores no se tocan a propósito: una clasificación pasada ya
+/// quedó registrada así, y reescribirla cambiaría en silencio reportes que el
+/// usuario ya dio por buenos. El mes que se esté mirando en pantalla tampoco
+/// influye: lo que manda es el mes real.
+pub fn aplicar_actualizacion(
+    conn: &Connection,
+    id: i64,
+    datos: &NuevoServicio,
+    hoy: NaiveDate,
+) -> Resultado<CambiosServicio> {
+    let antes = repos::servicios::obtener(conn, id)?;
+    repos::servicios::actualizar(conn, id, datos)?;
+
+    let cambio_categoria = antes.categoria_id != datos.categoria_id;
+    let cambio_monto = antes.monto_estimado != datos.monto_estimado;
+
+    // Editar solo el nombre o el día de vencimiento no mueve ningún gasto.
+    if !cambio_categoria && !cambio_monto {
+        return Ok(CambiosServicio::default());
+    }
+
+    // Si el mes en curso todavía no tiene período, no hay gastos que ajustar.
+    let Some(periodo) = repos::periodos::obtener(conn, hoy.year(), hoy.month())? else {
+        return Ok(CambiosServicio::default());
+    };
+
+    // Un mes cerrado está congelado, también para los ajustes automáticos.
+    if periodo.estado == "cerrado" {
+        return Ok(CambiosServicio::default());
+    }
+
+    let mut cambios = CambiosServicio::default();
+
+    if cambio_categoria {
+        cambios.reclasificados = repos::movimientos::reclasificar_por_servicio(
+            conn,
+            id,
+            periodo.id,
+            datos.categoria_id,
+        )?;
+    }
+
+    if cambio_monto {
+        cambios.estimados_actualizados = repos::movimientos::actualizar_estimado_de_servicio(
+            conn,
+            id,
+            periodo.id,
+            datos.monto_estimado,
+        )?;
+    }
+
+    Ok(cambios)
 }
 
 #[tauri::command]

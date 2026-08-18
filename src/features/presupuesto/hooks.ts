@@ -1,24 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
+import { claves, useInvalidar } from "@/lib/consultas";
 import * as ipc from "@/lib/ipc";
 import type { AsignacionPresupuesto } from "@/types/dominio";
 
-function useInvalidarPresupuesto() {
-  const qc = useQueryClient();
-  return () => {
-    qc.invalidateQueries({ queryKey: ["presupuesto"] });
-  };
-}
-
 export function useResumenPresupuesto(anio: number, mes: number) {
   return useQuery({
-    queryKey: ["presupuesto", anio, mes],
+    queryKey: claves.presupuesto(anio, mes),
     queryFn: () => ipc.resumenPresupuesto(anio, mes),
   });
 }
 
 export function useAsignarPresupuesto() {
-  const invalidar = useInvalidarPresupuesto();
+  const invalidar = useInvalidar();
   return useMutation({
     mutationFn: ({
       anio,
@@ -29,14 +23,15 @@ export function useAsignarPresupuesto() {
       mes: number;
       asignaciones: AsignacionPresupuesto[];
     }) => ipc.asignarPresupuesto(anio, mes, asignaciones),
-    onSuccess: invalidar,
+    // Asignar no mueve gastos: solo cambia el monto contra el que se comparan.
+    onSuccess: () => invalidar("presupuesto"),
   });
 }
 
 export function useCopiarPresupuesto() {
-  const invalidar = useInvalidarPresupuesto();
+  const invalidar = useInvalidar();
   return useMutation({
     mutationFn: ipc.copiarPresupuesto,
-    onSuccess: invalidar,
+    onSuccess: () => invalidar("presupuesto"),
   });
 }

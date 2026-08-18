@@ -3,6 +3,7 @@ import { useEffect } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { claves } from "@/lib/consultas";
 import * as ipc from "@/lib/ipc";
 
 /** Mismo nombre que la constante `EVENTO_ACTUALIZACION_LISTA` en Rust. */
@@ -15,7 +16,7 @@ export function useEstadoActualizacion() {
   // Rust avisa y recién ahí hay algo nuevo que mostrar.
   useEffect(() => {
     const desuscribir = listen(EVENTO, () => {
-      qc.invalidateQueries({ queryKey: ["actualizacion"] });
+      qc.invalidateQueries({ queryKey: claves.actualizacion() });
     }).catch(() => null);
 
     return () => {
@@ -24,7 +25,7 @@ export function useEstadoActualizacion() {
   }, [qc]);
 
   return useQuery({
-    queryKey: ["actualizacion"],
+    queryKey: claves.actualizacion(),
     queryFn: () => ipc.estadoActualizacion(),
     staleTime: 60_000,
   });
@@ -34,7 +35,7 @@ export function useBuscarActualizacion() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => ipc.buscarActualizacion(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["actualizacion"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: claves.actualizacion() }),
   });
 }
 

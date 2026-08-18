@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
+import { claves, useInvalidar, type EventoDominio } from "@/lib/consultas";
 import * as ipc from "@/lib/ipc";
 import type { NuevaCategoria, NuevoServicio } from "@/types/dominio";
 
@@ -12,33 +13,36 @@ import type { NuevaCategoria, NuevoServicio } from "@/types/dominio";
  */
 const mesesGenerados = new Set<string>();
 
+/**
+ * Servicios y categorías terminan afectando los gastos del mes, y por ahí el
+ * presupuesto y los reportes. Qué se invalida exactamente está en
+ * `RELACIONES`, en `lib/consultas.ts`.
+ */
+function useInvalidarCatalogos(evento: Extract<EventoDominio, "servicio" | "categoria">) {
+  const invalidar = useInvalidar();
+
+  return () => {
+    // Un servicio nuevo o reactivado tiene que poder generar su gasto aunque
+    // el mes ya se haya visitado. Sin esto, el gasto no aparece hasta que se
+    // reinicia la app.
+    mesesGenerados.clear();
+    invalidar(evento);
+  };
+}
+
 // ── categorías ───────────────────────────────────────────────────────────────
 
 export function useCategorias(soloActivas = false) {
   return useQuery({
-    queryKey: ["categorias", soloActivas],
+    queryKey: claves.categorias(soloActivas),
     // Cambian poco y las usan casi todas las pantallas.
     staleTime: 5 * 60_000,
     queryFn: () => ipc.listarCategorias(soloActivas),
   });
 }
 
-function useInvalidarCatalogos() {
-  const qc = useQueryClient();
-  return () => {
-    // Un servicio nuevo o reactivado tiene que poder generar su gasto aunque
-    // el mes ya se haya visitado.
-    mesesGenerados.clear();
-    qc.invalidateQueries({ queryKey: ["categorias"] });
-    qc.invalidateQueries({ queryKey: ["servicios"] });
-    qc.invalidateQueries({ queryKey: ["resumen-servicios"] });
-    qc.invalidateQueries({ queryKey: ["resumen-periodo"] });
-    qc.invalidateQueries({ queryKey: ["movimientos"] });
-  };
-}
-
 export function useCrearCategoria() {
-  const invalidar = useInvalidarCatalogos();
+  const invalidar = useInvalidarCatalogos("categoria");
   return useMutation({
     mutationFn: (datos: NuevaCategoria) => ipc.crearCategoria(datos),
     onSuccess: invalidar,
@@ -46,7 +50,7 @@ export function useCrearCategoria() {
 }
 
 export function useActualizarCategoria() {
-  const invalidar = useInvalidarCatalogos();
+  const invalidar = useInvalidarCatalogos("categoria");
   return useMutation({
     mutationFn: ({ id, datos }: { id: number; datos: NuevaCategoria }) =>
       ipc.actualizarCategoria(id, datos),
@@ -55,7 +59,7 @@ export function useActualizarCategoria() {
 }
 
 export function useEliminarCategoria() {
-  const invalidar = useInvalidarCatalogos();
+  const invalidar = useInvalidarCatalogos("categoria");
   return useMutation({
     mutationFn: (id: number) => ipc.eliminarCategoria(id),
     onSuccess: invalidar,
@@ -66,20 +70,20 @@ export function useEliminarCategoria() {
 
 export function useServicios(soloActivos = false) {
   return useQuery({
-    queryKey: ["servicios", soloActivos],
+    queryKey: claves.servicios(soloActivos),
     queryFn: () => ipc.listarServicios(soloActivos),
   });
 }
 
 export function useResumenServicios(anio: number, mes: number) {
   return useQuery({
-    queryKey: ["resumen-servicios", anio, mes],
+    queryKey: claves.resumenServicios(anio, mes),
     queryFn: () => ipc.resumenServicios(anio, mes),
   });
 }
 
 export function useCrearServicio() {
-  const invalidar = useInvalidarCatalogos();
+  const invalidar = useInvalidarCatalogos("servicio");
   return useMutation({
     mutationFn: (datos: NuevoServicio) => ipc.crearServicio(datos),
     onSuccess: invalidar,
@@ -87,7 +91,7 @@ export function useCrearServicio() {
 }
 
 export function useActualizarServicio() {
-  const invalidar = useInvalidarCatalogos();
+  const invalidar = useInvalidarCatalogos("servicio");
   return useMutation({
     mutationFn: ({ id, datos }: { id: number; datos: NuevoServicio }) =>
       ipc.actualizarServicio(id, datos),
@@ -96,7 +100,7 @@ export function useActualizarServicio() {
 }
 
 export function useEliminarServicio() {
-  const invalidar = useInvalidarCatalogos();
+  const invalidar = useInvalidarCatalogos("servicio");
   return useMutation({
     mutationFn: (id: number) => ipc.eliminarServicio(id),
     onSuccess: invalidar,
@@ -104,7 +108,7 @@ export function useEliminarServicio() {
 }
 
 export function useGenerarGastosServicios() {
-  const invalidar = useInvalidarCatalogos();
+  const invalidar = useInvalidarCatalogos("servicio");
   return useMutation({
     mutationFn: ({ anio, mes }: { anio: number; mes: number }) =>
       ipc.generarGastosServicios(anio, mes),
