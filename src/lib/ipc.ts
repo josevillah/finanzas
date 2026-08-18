@@ -28,6 +28,7 @@ import type {
   MesCarga,
   MovimientoDetalle,
   NuevaCategoria,
+  NuevaCuenta,
   NuevaDeuda,
   NuevoMovimiento,
   NuevoServicio,
@@ -38,6 +39,7 @@ import type {
   ResultadoReinicio,
   ResultadoRestauracion,
   ResumenReinicio,
+  ResumenCuentas,
   ResumenTerceros,
   ResumenPeriodo,
   ResumenPresupuesto,
@@ -396,6 +398,42 @@ export function reiniciarDatos(datos: {
     confirmacion: datos.confirmacion,
     borrarServicios: datos.borrarServicios,
   });
+}
+
+// ── cuentas ──────────────────────────────────────────────────────────────────
+
+export function resumenCuentas(): Promise<ResumenCuentas> {
+  return invoke("resumen_cuentas");
+}
+
+/**
+ * Ajusta lo que había antes de empezar a usar la app. Es la única perilla para
+ * cuadrar el disponible con el banco. Admite negativos.
+ */
+export function fijarSaldoInicial(saldo: number): Promise<void> {
+  return invoke("fijar_saldo_inicial", { saldo });
+}
+
+/** Mueve plata del disponible a una cuenta de ahorro. */
+export function apartar(ahorroId: number, monto: number): Promise<void> {
+  return invoke("apartar", { ahorroId, monto });
+}
+
+export function retirar(ahorroId: number, monto: number): Promise<void> {
+  return invoke("retirar", { ahorroId, monto });
+}
+
+export function crearCuenta(datos: NuevaCuenta): Promise<number> {
+  return invoke("crear_cuenta", { datos });
+}
+
+export function actualizarCuenta(id: number, nombre: string, activa: boolean): Promise<void> {
+  return invoke("actualizar_cuenta", { id, nombre, activa });
+}
+
+
+export function eliminarCuenta(id: number): Promise<void> {
+  return invoke("eliminar_cuenta", { id });
 }
 
 /** Los comandos rechazan con un string; esto lo normaliza para mostrarlo. */

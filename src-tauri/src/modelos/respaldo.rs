@@ -1,6 +1,8 @@
 use serde::Serialize;
 
 use crate::modelos::categoria::Categoria;
+use crate::dominio::dinero::Monto;
+use crate::modelos::cuenta::Cuenta;
 use crate::modelos::cuota::Cuota;
 use crate::modelos::deuda::Deuda;
 use crate::modelos::movimiento::Movimiento;
@@ -46,6 +48,11 @@ pub struct RespaldoJson {
     pub cuotas: Vec<Cuota>,
     pub movimientos: Vec<Movimiento>,
     pub presupuestos: Vec<Presupuesto>,
+    /// Cuentas de ahorro.
+    pub cuentas: Vec<Cuenta>,
+    /// Lo que el usuario tenía antes de empezar. No es un movimiento, así que
+    /// sin esto el patrimonio no se podría reconstruir desde el JSON.
+    pub saldo_inicial: Monto,
 }
 
 #[derive(Debug, Clone, Serialize)]

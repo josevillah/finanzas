@@ -490,3 +490,28 @@ pub fn insertar_activacion_manual(
     )?;
     Ok(conn.last_insert_rowid())
 }
+
+/// Ingresos, gastos y gastos aún estimados de **toda** la tabla.
+///
+/// Sin filtro de período ni de estado del mes: el patrimonio es acumulativo
+/// desde siempre, y un mes cerrado no devuelve la plata que salió.
+///
+/// Los estimados se suman a los gastos y además se devuelven aparte. Contarlos
+/// deja el disponible algo bajo mientras un servicio del mes en curso no
+/// vence, pero el error es acotado y se corrige solo al confirmar el monto;
+/// excluirlos, en cambio, abriría una brecha creciente con cada mes viejo que
+/// quedó sin confirmar. El tercer valor existe para poder explicarlo en
+/// pantalla en vez de que el número se vea mal sin razón aparente.
+pub fn totales_historicos(conn: &Connection) -> Resultado<(Monto, Monto, Monto)> {
+    let fila = conn.query_row(
+        "SELECT
+            COALESCE(SUM(CASE WHEN tipo = 'ingreso' THEN monto ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN tipo = 'gasto' THEN monto ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN tipo = 'gasto' AND es_estimado = 1
+                              THEN monto ELSE 0 END), 0)
+         FROM movimientos",
+        [],
+        |f| Ok((f.get(0)?, f.get(1)?, f.get(2)?)),
+    )?;
+    Ok(fila)
+}

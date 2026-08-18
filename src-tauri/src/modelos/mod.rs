@@ -4,6 +4,7 @@
 
 pub mod categoria;
 pub mod configuracion;
+pub mod cuenta;
 pub mod cuota;
 pub mod deuda;
 pub mod movimiento;
@@ -16,6 +17,7 @@ pub mod servicio;
 
 pub use categoria::{Categoria, NuevaCategoria, TipoCategoria, CODIGO_DEUDAS};
 pub use configuracion::{AccionCierre, AjustesApp};
+pub use cuenta::{Cuenta, DesgloseSaldo, NuevaCuenta, ResumenCuentas};
 pub use cuota::{Cuota, CuotaConDeuda, EstadoCuota, PagoCuota};
 pub use deuda::{
     CargaFinanciera, Deuda, DeudaDetalle, DeudaResumen, EstadoDeuda, FechaLibertad, Liberacion,

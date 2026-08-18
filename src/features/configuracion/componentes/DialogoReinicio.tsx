@@ -183,6 +183,7 @@ function ListaDeBorrado({
     ["Presupuestos", resumen.presupuestos],
     ["Meses", resumen.periodos],
     ["Categorías creadas por ti", resumen.categorias_propias],
+    ["Cuentas de ahorro", resumen.cuentas],
   ];
 
   if (borrarServicios) seBorra.push(["Servicios recurrentes", resumen.servicios]);
@@ -208,12 +209,16 @@ function ListaDeBorrado({
           Se conserva
         </p>
         <ul className="space-y-0.5 text-slate-600 dark:text-slate-400">
-          <li>Las 14 categorías de fábrica</li>
+          <li>Las 15 categorías de fábrica</li>
           {!borrarServicios ? <li>Tus {resumen.servicios} servicios recurrentes</li> : null}
           <li>Tus preferencias y el tema</li>
           <li>Los respaldos ya guardados</li>
         </ul>
       </div>
+
+      <p className="text-xs text-slate-500 sm:col-span-2 dark:text-slate-400">
+        Tu saldo inicial vuelve a $0: tendrás que ajustarlo de nuevo para cuadrar el disponible.
+      </p>
     </div>
   );
 }

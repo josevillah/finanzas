@@ -420,6 +420,8 @@ export interface ResumenReinicio {
   periodos: number;
   servicios: number;
   categorias_propias: number;
+  /** Cuentas de ahorro. */
+  cuentas: number;
   total: number;
 }
 
@@ -429,6 +431,7 @@ export interface ResultadoReinicio {
   servicios_borrados: number;
   categorias_borradas: number;
   categorias_reactivadas: number;
+  cuentas_borradas: number;
 }
 
 export interface EstadoActualizacion {
@@ -539,3 +542,48 @@ export const ETIQUETAS_ESTADO_CUOTA: Record<EstadoCuota, string> = {
   pagada: "Pagada",
   atrasada: "Atrasada",
 };
+
+// ── cuentas ──────────────────────────────────────────────────────────────────
+
+/**
+ * Una cuenta de ahorro: plata apartada del disponible para no gastarla.
+ * El disponible no es una cuenta, es un cálculo.
+ */
+export interface Cuenta {
+  id: number;
+  nombre: string;
+  saldo: number;
+  activa: boolean;
+  orden: number;
+  /** ISO del último movimiento de plata en esta cuenta. */
+  actualizado_en: string | null;
+}
+
+export interface NuevaCuenta {
+  nombre: string;
+}
+
+/** De dónde sale el disponible, término por término. */
+export interface DesgloseSaldo {
+  /** Lo que había antes de empezar a usar la app. Lo declara el usuario. */
+  saldo_inicial: number;
+  /** Sueldos y otros ingresos declarados en los períodos. */
+  ingresos_declarados: number;
+  /** Movimientos de tipo ingreso. */
+  ingresos_registrados: number;
+  /** Movimientos de tipo gasto, estimados incluidos. */
+  gastos: number;
+  /** Parte de `gastos` que todavía es una proyección sin confirmar. */
+  gastos_estimados: number;
+  /** Suma de los saldos de ahorro. */
+  apartado: number;
+}
+
+export interface ResumenCuentas {
+  disponible: number;
+  /** Disponible más ahorros. No resta deudas: no es patrimonio neto. */
+  patrimonio: number;
+  total_ahorrado: number;
+  ahorros: Cuenta[];
+  desglose: DesgloseSaldo;
+}

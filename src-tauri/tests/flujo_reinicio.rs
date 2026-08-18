@@ -403,3 +403,31 @@ fn el_sello_de_tiempo_evita_que_dos_reinicios_se_pisen() {
         "empieza con la fecha del día: {sello}"
     );
 }
+
+#[test]
+fn el_reinicio_borra_los_ahorros_y_deja_el_saldo_inicial_en_cero() {
+    use finanzas_lib::comandos::cuentas::{crear, fijar_inicial, mover, Direccion};
+    use finanzas_lib::modelos::cuenta::NuevaCuenta;
+
+    let conn = base();
+
+    fijar_inicial(&conn, 800_000).unwrap();
+    let viaje = crear(&conn, &NuevaCuenta { nombre: "Viaje".into() }).unwrap();
+    crear(&conn, &NuevaCuenta { nombre: "Emergencias".into() }).unwrap();
+    mover(&conn, viaje, 300_000, Direccion::Apartar).unwrap();
+
+    let resultado = vaciar(&conn, false).unwrap();
+
+    assert_eq!(resultado.cuentas_borradas, 2);
+    assert_eq!(contar(&conn, "cuentas"), 0);
+    assert_eq!(
+        repos::configuracion::obtener_monto(&conn, repos::configuracion::SALDO_INICIAL).unwrap(),
+        0,
+        "el saldo inicial es un dato financiero, no una preferencia: no sobrevive"
+    );
+
+    // Sin saldo inicial y sin movimientos, el patrimonio arranca de cero.
+    let r = finanzas_lib::comandos::cuentas::armar_resumen(&conn).unwrap();
+    assert_eq!(r.disponible, 0);
+    assert_eq!(r.patrimonio, 0);
+}

@@ -49,6 +49,8 @@ pub fn resumen_reinicio(estado: State<'_, EstadoApp>) -> Resultado<ResumenReinic
         periodos,
         servicios: contar("servicios")?,
         categorias_propias,
+        // Cuentas de ahorro.
+        cuentas: contar("cuentas")?,
     })
 }
 
@@ -152,13 +154,29 @@ pub fn vaciar(conn: &Connection, borrar_servicios: bool) -> Resultado<ResultadoR
 
     asegurar_categoria_de_deudas(conn)?;
 
+    let cuentas_borradas = vaciar_cuentas(conn)?;
+
     Ok(ResultadoReinicio {
         ruta_respaldo: String::new(),
         registros_borrados,
         servicios_borrados,
         categorias_borradas,
         categorias_reactivadas,
+        cuentas_borradas,
     })
+}
+
+/// Los ahorros se van, y el saldo inicial vuelve a 0.
+///
+/// El saldo inicial vive en `configuracion`, que en general se conserva, pero
+/// no es una preferencia: es un dato financiero. Dejarlo en pie haría que una
+/// base recién vaciada mostrara plata que ya no tiene historial detrás.
+fn vaciar_cuentas(conn: &Connection) -> Resultado<i64> {
+    let borradas = conn.execute("DELETE FROM cuentas", [])? as i64;
+
+    repos::configuracion::guardar_monto(conn, repos::configuracion::SALDO_INICIAL, 0)?;
+
+    Ok(borradas)
 }
 
 /// La categoría donde se imputan los pagos de cuotas tiene que existir sí o sí.

@@ -5,6 +5,7 @@ pub mod actualizacion;
 pub mod analisis;
 pub mod categorias;
 pub mod configuracion;
+pub mod cuentas;
 pub mod cuotas;
 pub mod deudas;
 pub mod movimientos;

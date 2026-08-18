@@ -17,6 +17,8 @@ pub struct ResumenReinicio {
     pub servicios: i64,
     /// Categorías creadas por el usuario; las de fábrica no se tocan.
     pub categorias_propias: i64,
+    /// Cuentas de ahorro.
+    pub cuentas: i64,
     /// Suma de lo que se borraría sin contar servicios ni categorías.
     pub total: i64,
 }
@@ -29,4 +31,5 @@ pub struct ResultadoReinicio {
     pub servicios_borrados: i64,
     pub categorias_borradas: i64,
     pub categorias_reactivadas: i64,
+    pub cuentas_borradas: i64,
 }

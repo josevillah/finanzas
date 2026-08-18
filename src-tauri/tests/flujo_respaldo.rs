@@ -548,3 +548,40 @@ fn dos_migraciones_el_mismo_dia_no_se_pisan() {
     assert_ne!(copia_a, copia_b);
     assert!(copia_a.is_file() && copia_b.is_file());
 }
+
+#[test]
+fn el_saldo_inicial_y_los_ahorros_sobreviven_a_un_ciclo_de_respaldo() {
+    use finanzas_lib::comandos::cuentas::{armar_resumen, crear, fijar_inicial, mover, Direccion};
+    use finanzas_lib::modelos::cuenta::NuevaCuenta;
+
+    let dir = carpeta("cuentas-ida-y-vuelta");
+    let archivo = dir.join("respaldo.db");
+
+    let origen = base();
+    con_datos(&origen);
+    fijar_inicial(&origen, 250_000).unwrap();
+    let viaje = crear(&origen, &NuevaCuenta { nombre: "Viaje".into() }).unwrap();
+    mover(&origen, viaje, 100_000, Direccion::Apartar).unwrap();
+
+    let esperado = armar_resumen(&origen).unwrap();
+    origen.backup(DatabaseName::Main, &archivo, None).unwrap();
+
+    let mut destino = base();
+    destino
+        .restore(
+            DatabaseName::Main,
+            &archivo,
+            None::<fn(rusqlite::backup::Progress)>,
+        )
+        .unwrap();
+
+    let restaurado = armar_resumen(&destino).unwrap();
+
+    // El saldo inicial vive en `configuracion` y no en una tabla de datos:
+    // si se quedara fuera del respaldo, el patrimonio no se podría reconstruir.
+    assert_eq!(restaurado.desglose.saldo_inicial, 250_000);
+    assert_eq!(restaurado.total_ahorrado, 100_000);
+    assert_eq!(restaurado.disponible, esperado.disponible);
+    assert_eq!(restaurado.patrimonio, esperado.patrimonio);
+    assert_eq!(restaurado.ahorros.len(), 1);
+}

@@ -127,3 +127,17 @@ pub fn resumen_de_periodos(conn: &Connection) -> Resultado<Vec<(i32, u32, i32, i
 
     Ok(filas.collect::<rusqlite::Result<Vec<_>>>()?)
 }
+
+/// Suma de sueldos y otros ingresos declarados en todos los períodos.
+///
+/// El sueldo vive en `periodos`, no en `movimientos`: sin esto el patrimonio
+/// restaría todos los gastos sumando casi ningún ingreso. Es la misma
+/// definición de ingreso que usa el resumen del mes.
+pub fn total_ingresos_declarados(conn: &Connection) -> Resultado<Monto> {
+    let total: Monto = conn.query_row(
+        "SELECT COALESCE(SUM(sueldo_liquido + otros_ingresos), 0) FROM periodos",
+        [],
+        |f| f.get(0),
+    )?;
+    Ok(total)
+}

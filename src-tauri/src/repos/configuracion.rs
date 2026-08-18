@@ -1,5 +1,6 @@
 use rusqlite::{params, Connection, OptionalExtension};
 
+use crate::dominio::dinero::Monto;
 use crate::error::Resultado;
 
 /// Fecha ISO del último respaldo exitoso.
@@ -43,4 +44,23 @@ pub fn guardar(conn: &Connection, clave: &str, valor: &str) -> Resultado<()> {
         params![clave, valor],
     )?;
     Ok(())
+}
+
+/// Lo que el usuario tenía antes de empezar a usar la app.
+///
+/// Es el único número que ajusta a mano para que el disponible calce con su
+/// banco. No es un movimiento a propósito: un ingreso ficticio inflaría el
+/// resumen de ese mes y torcería el reporte de evolución para siempre.
+pub const SALDO_INICIAL: &str = "saldo_inicial";
+
+/// Lee un monto guardado. Una clave ausente o ilegible vale 0: es mejor
+/// mostrar el patrimonio sin el ajuste que no abrir la pantalla.
+pub fn obtener_monto(conn: &Connection, clave: &str) -> Resultado<Monto> {
+    Ok(obtener(conn, clave)?
+        .and_then(|v| v.parse::<Monto>().ok())
+        .unwrap_or(0))
+}
+
+pub fn guardar_monto(conn: &Connection, clave: &str, valor: Monto) -> Resultado<()> {
+    guardar(conn, clave, &valor.to_string())
 }

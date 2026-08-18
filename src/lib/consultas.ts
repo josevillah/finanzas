@@ -18,6 +18,7 @@ export const RAICES = [
   "calendario",
   "carga-financiera",
   "categorias",
+  "cuentas",
   "cuotas-mes",
   "deuda",
   "deudas",
@@ -50,6 +51,7 @@ export const claves = {
   terceros: () => ["terceros"] as const,
   calendario: (meses: number) => ["calendario", meses] as const,
   cargaFinanciera: (anio: number, mes: number) => ["carga-financiera", anio, mes] as const,
+  cuentas: () => ["cuentas"] as const,
   cuotasMes: (anio: number, mes: number) => ["cuotas-mes", anio, mes] as const,
   fechaLibertad: () => ["fecha-libertad"] as const,
   simulacion: (monto: number, tasa: number, cuotas: number, fecha: string) =>
@@ -92,6 +94,9 @@ const POR_MOVIMIENTO = [
   "evolucion-gastos",
   "reporte-hormiga",
   "meses-disponibles",
+  // El disponible se calcula desde los movimientos: cada gasto o ingreso lo
+  // cambia.
+  "cuentas",
 ] as const satisfies readonly Raiz[];
 
 /** Vistas sobre deudas y cuotas. */
@@ -112,7 +117,8 @@ export type EventoDominio =
   | "cuota"
   | "deuda"
   | "periodo"
-  | "presupuesto";
+  | "presupuesto"
+  | "cuenta";
 
 export const RELACIONES: Record<EventoDominio, readonly Raiz[]> = {
   // Un servicio activo materializa su gasto del mes, así que arrastra todo lo
@@ -131,11 +137,24 @@ export const RELACIONES: Record<EventoDominio, readonly Raiz[]> = {
 
   deuda: POR_DEUDA,
 
-  // El sueldo del período alimenta el semáforo de carga y el "sin asignar"
-  // del presupuesto.
-  periodo: ["periodo", "meses-disponibles", "resumen-periodo", "carga-financiera", "presupuesto"],
+  // El sueldo del período alimenta el semáforo de carga, el "sin asignar" del
+  // presupuesto y —porque vive en `periodos` y no en `movimientos`— también el
+  // disponible de Cuentas.
+  periodo: [
+    "periodo",
+    "meses-disponibles",
+    "resumen-periodo",
+    "carga-financiera",
+    "presupuesto",
+    "cuentas",
+  ],
 
   presupuesto: ["presupuesto"],
+
+  // Apartar plata o ajustar el saldo inicial no alimenta ningún otro cálculo:
+  // el presupuesto y los reportes salen de los movimientos, que no se tocan.
+  // La dependencia va al revés, y está en POR_MOVIMIENTO.
+  cuenta: ["cuentas"],
 };
 
 /**

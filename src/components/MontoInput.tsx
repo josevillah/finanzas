@@ -10,6 +10,11 @@ interface Props {
   id?: string;
   disabled?: boolean;
   autoFocus?: boolean;
+  /**
+   * Deja escribir montos negativos. Solo lo usa el saldo inicial, que puede
+   * serlo si el usuario empezó con la cuenta en rojo.
+   */
+  permiteNegativo?: boolean;
 }
 
 /**
@@ -17,7 +22,15 @@ interface Props {
  * se muestra siempre normalizado ("1.234.567") y hacia afuera entrega un
  * entero.
  */
-export function MontoInput({ valor, onCambio, placeholder, id, disabled, autoFocus }: Props) {
+export function MontoInput({
+  valor,
+  onCambio,
+  placeholder,
+  id,
+  disabled,
+  autoFocus,
+  permiteNegativo,
+}: Props) {
   const [texto, setTexto] = useState(() => (valor ? formatearMiles(valor) : ""));
 
   // Si el valor cambia desde afuera (reset del formulario, edición), se
@@ -44,8 +57,15 @@ export function MontoInput({ valor, onCambio, placeholder, id, disabled, autoFoc
         autoFocus={autoFocus}
         value={texto}
         onChange={(e) => {
-          const entero = parsearMonto(e.target.value);
-          setTexto(entero ? formatearMiles(entero) : "");
+          const bruto = e.target.value;
+          const entero = parsearMonto(bruto);
+
+          // Un "-" solo todavía no es un número, pero hay que dejarlo escrito:
+          // si se borrara, el usuario nunca podría terminar de escribir el
+          // negativo.
+          const menosEnCurso = permiteNegativo && bruto.trim().startsWith("-");
+          setTexto(entero ? formatearMiles(entero) : menosEnCurso ? "-" : "");
+
           onCambio(entero);
         }}
       />

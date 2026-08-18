@@ -13,6 +13,20 @@ export interface GrupoNav {
 }
 
 export const NAVEGACION: GrupoNav[] = [
+  // Grupo propio y no dentro de "Mes": los saldos son de ahora, no de un
+  // período, y no cambian al moverse de mes.
+  {
+    titulo: "Saldos",
+    items: [
+      {
+        ruta: "/cuentas",
+        etiqueta: "Cuentas",
+        corto: "Cuentas",
+        icono: "🏦",
+        descripcion: "Disponible, ahorros y patrimonio",
+      },
+    ],
+  },
   {
     titulo: "Mes",
     items: [

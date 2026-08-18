@@ -181,6 +181,14 @@ pub fn run() {
             comandos::servicios::generar_gastos_servicios,
             comandos::servicios::activar_servicio_en_mes,
             comandos::servicios::resumen_servicios,
+            // cuentas
+            comandos::cuentas::resumen_cuentas,
+            comandos::cuentas::fijar_saldo_inicial,
+            comandos::cuentas::apartar,
+            comandos::cuentas::retirar,
+            comandos::cuentas::crear_cuenta,
+            comandos::cuentas::actualizar_cuenta,
+            comandos::cuentas::eliminar_cuenta,
             // presupuesto
             comandos::presupuestos::resumen_presupuesto,
             comandos::presupuestos::asignar_presupuesto,

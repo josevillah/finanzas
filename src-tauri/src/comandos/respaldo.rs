@@ -15,8 +15,25 @@ use crate::modelos::respaldo::{
 use crate::repos;
 use crate::EstadoApp;
 
-/// Las 7 tablas con datos del usuario, en orden de dependencia.
-const TABLAS: [&str; 7] = [
+/// Las tablas con datos del usuario, en orden de dependencia.
+const TABLAS: [&str; 8] = [
+    "periodos",
+    "categorias",
+    "servicios",
+    "deudas",
+    "cuotas",
+    "movimientos",
+    "presupuestos",
+    "cuentas",
+];
+
+/// Tablas que identifican un archivo como base de Finanzas.
+///
+/// Es el esquema inicial a propósito y no [`TABLAS`]: un respaldo hecho con una
+/// versión anterior no tiene las tablas que se agregaron después y sigue siendo
+/// perfectamente válido —al restaurarlo se le aplican las migraciones que le
+/// falten—. Exigir una tabla nueva acá rechazaría respaldos buenos.
+const TABLAS_IDENTIDAD: [&str; 7] = [
     "periodos",
     "categorias",
     "servicios",
@@ -240,6 +257,11 @@ pub fn exportar_json(estado: State<'_, EstadoApp>, destino: String) -> Resultado
         cuotas: repos::cuotas::listar_todas(&guard)?,
         movimientos: repos::movimientos::listar_todos(&guard)?,
         presupuestos: repos::presupuestos::listar_todos(&guard)?,
+        cuentas: repos::cuentas::listar(&guard, false)?,
+        saldo_inicial: repos::configuracion::obtener_monto(
+            &guard,
+            repos::configuracion::SALDO_INICIAL,
+        )?,
     };
 
     let filas = (respaldo.periodos.len()
@@ -248,7 +270,8 @@ pub fn exportar_json(estado: State<'_, EstadoApp>, destino: String) -> Resultado
         + respaldo.deudas.len()
         + respaldo.cuotas.len()
         + respaldo.movimientos.len()
-        + respaldo.presupuestos.len()) as i64;
+        + respaldo.presupuestos.len()
+        + respaldo.cuentas.len()) as i64;
 
     let texto = serde_json::to_string_pretty(&respaldo)
         .map_err(|e| AppError::validacion(format!("No se pudo generar el JSON: {e}")))?;
@@ -363,17 +386,24 @@ pub fn validar_respaldo(origen: &Path) -> Resultado<i32> {
         |_| AppError::validacion("El archivo no es una base de datos SQLite válida."),
     )?;
 
+    // La lista se arma desde la constante para que no puedan desincronizarse.
+    // Son nombres del binario, nunca entrada del usuario.
+    let lista = TABLAS_IDENTIDAD
+        .map(|t| format!("'{t}'"))
+        .join(",");
+
     let encontradas: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM sqlite_master
-             WHERE type = 'table' AND name IN
-             ('periodos','categorias','servicios','movimientos','deudas','cuotas','presupuestos')",
+            &format!(
+                "SELECT COUNT(*) FROM sqlite_master
+                 WHERE type = 'table' AND name IN ({lista})"
+            ),
             [],
             |f| f.get(0),
         )
         .map_err(|_| AppError::validacion("No se pudo leer el archivo como respaldo."))?;
 
-    if encontradas < TABLAS.len() as i64 {
+    if encontradas < TABLAS_IDENTIDAD.len() as i64 {
         return Err(AppError::validacion(
             "Ese archivo no parece un respaldo de Finanzas: le faltan tablas.",
         ));
