@@ -20,12 +20,13 @@ import {
   useEliminarCategoria,
 } from "../hooks";
 
-const TIPOS: TipoCategoria[] = ["fijo", "variable", "hormiga"];
+const TIPOS: TipoCategoria[] = ["fijo", "variable", "hormiga", "ingreso"];
 
 const DESCRIPCION_TIPO: Record<TipoCategoria, string> = {
   fijo: "Sale todos los meses sí o sí.",
   variable: "Necesario, pero el monto cambia.",
   hormiga: "Gasto chico y frecuente. Es lo que se captura con Ctrl+Shift+G.",
+  ingreso: "Clasifica plata que entra. No aparece en el presupuesto ni en los reportes de gasto.",
 };
 
 const PALETA = [
@@ -46,7 +47,12 @@ export function Categorias() {
   const eliminar = useEliminarCategoria();
 
   const porTipo = useMemo(() => {
-    const grupos: Record<TipoCategoria, Categoria[]> = { fijo: [], variable: [], hormiga: [] };
+    const grupos: Record<TipoCategoria, Categoria[]> = {
+      fijo: [],
+      variable: [],
+      hormiga: [],
+      ingreso: [],
+    };
     for (const c of data ?? []) grupos[c.tipo].push(c);
     return grupos;
   }, [data]);
@@ -83,7 +89,7 @@ export function Categorias() {
         </Boton>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {TIPOS.map((tipo) => (
           <div key={tipo} className="tarjeta">
             <h2 className="font-medium">{ETIQUETAS_TIPO_CATEGORIA[tipo]}</h2>

@@ -3,7 +3,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use crate::dominio::dinero::Monto;
 use crate::error::{AppError, Resultado};
 use crate::modelos::movimiento::{
-    FiltroMovimientos, Movimiento, MovimientoDetalle, NuevoMovimiento,
+    FiltroMovimientos, Movimiento, MovimientoDetalle, NuevoMovimiento, TipoMovimiento,
 };
 use crate::modelos::periodo::GastoPorCategoria;
 
@@ -125,8 +125,11 @@ pub fn eliminar(conn: &Connection, id: i64) -> Resultado<()> {
 
 // ── enlace con cuotas ────────────────────────────────────────────────────────
 
-/// Registra el gasto que corresponde al pago de una cuota. El índice único
-/// sobre `cuota_id` impide duplicarlo.
+/// Registra el movimiento que corresponde al pago o cobro de una cuota.
+///
+/// El tipo lo decide la dirección de la deuda: pagar una propia es un gasto,
+/// cobrar una de un tercero es un ingreso. El índice único sobre `cuota_id`
+/// impide duplicarlo en cualquiera de los dos casos.
 pub fn insertar_pago_cuota(
     conn: &Connection,
     periodo_id: i64,
@@ -135,12 +138,21 @@ pub fn insertar_pago_cuota(
     fecha: &str,
     monto: Monto,
     descripcion: &str,
+    tipo: TipoMovimiento,
 ) -> Resultado<i64> {
     conn.execute(
         "INSERT INTO movimientos
             (periodo_id, fecha, monto, tipo, categoria_id, cuota_id, descripcion)
-         VALUES (?1, ?2, ?3, 'gasto', ?4, ?5, ?6)",
-        params![periodo_id, fecha, monto, categoria_id, cuota_id, descripcion],
+         VALUES (?1, ?2, ?3, ?7, ?4, ?5, ?6)",
+        params![
+            periodo_id,
+            fecha,
+            monto,
+            categoria_id,
+            cuota_id,
+            descripcion,
+            tipo.como_texto()
+        ],
     )?;
     Ok(conn.last_insert_rowid())
 }
@@ -442,3 +454,39 @@ pub fn insertar_estimado_servicio(
     Ok(conn.last_insert_rowid())
 }
 
+
+/// ¿El servicio ya tiene algún gasto en ese período?
+/// Evita que una activación manual repetida duplique el movimiento.
+pub fn tiene_movimientos_de_servicio(
+    conn: &Connection,
+    servicio_id: i64,
+    periodo_id: i64,
+) -> Resultado<bool> {
+    let n: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM movimientos WHERE servicio_id = ?1 AND periodo_id = ?2",
+        params![servicio_id, periodo_id],
+        |f| f.get(0),
+    )?;
+    Ok(n > 0)
+}
+
+/// Registra a mano el gasto de un servicio en un mes en que su alta no lo
+/// cubre. Nace confirmado (`es_estimado = 0`) porque el monto lo escribió el
+/// usuario, no lo proyectó el sistema.
+pub fn insertar_activacion_manual(
+    conn: &Connection,
+    periodo_id: i64,
+    servicio_id: i64,
+    categoria_id: Option<i64>,
+    fecha: &str,
+    monto: Monto,
+    descripcion: &str,
+) -> Resultado<i64> {
+    conn.execute(
+        "INSERT INTO movimientos
+            (periodo_id, fecha, monto, tipo, categoria_id, servicio_id, descripcion, es_estimado)
+         VALUES (?1, ?2, ?3, 'gasto', ?4, ?5, ?6, 0)",
+        params![periodo_id, fecha, monto, categoria_id, servicio_id, descripcion],
+    )?;
+    Ok(conn.last_insert_rowid())
+}

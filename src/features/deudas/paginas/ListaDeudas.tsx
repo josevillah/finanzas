@@ -7,17 +7,22 @@ import { Boton } from "@/components/ui/Boton";
 import { Insignia } from "@/components/ui/Insignia";
 import { Cargando, ErrorCarga, Vacio } from "@/components/ui/Estados";
 import { formatearFecha } from "@/lib/fechas";
-import { formatearPorcentaje } from "@/lib/moneda";
+import { formatearCLP, formatearPorcentaje } from "@/lib/moneda";
 import {
+  ETIQUETAS_DIRECCION,
   ETIQUETAS_ESTADO_DEUDA,
   ETIQUETAS_TIPO_DEUDA,
   type DeudaResumen,
+  type DireccionDeuda,
   type EstadoDeuda,
   type NuevaDeuda,
 } from "@/types/dominio";
 
 import { FormularioDeuda } from "../componentes/FormularioDeuda";
-import { useCrearDeuda, useDeudas } from "../hooks";
+import { ResumenPorPersona } from "../componentes/ResumenPorPersona";
+import { useCrearDeuda, useDeudas, useResumenTerceros } from "../hooks";
+
+const DIRECCIONES: DireccionDeuda[] = ["propia", "tercero"];
 
 const FILTROS: Array<{ valor: EstadoDeuda | null; etiqueta: string }> = [
   { valor: "vigente", etiqueta: "Vigentes" },
@@ -27,10 +32,12 @@ const FILTROS: Array<{ valor: EstadoDeuda | null; etiqueta: string }> = [
 ];
 
 export function ListaDeudas() {
+  const [direccion, setDireccion] = useState<DireccionDeuda>("propia");
   const [filtro, setFiltro] = useState<EstadoDeuda | null>("vigente");
   const [formAbierto, setFormAbierto] = useState(false);
 
-  const { data: deudas, isPending, error, refetch } = useDeudas(filtro);
+  const { data: deudas, isPending, error, refetch } = useDeudas(filtro, direccion);
+  const terceros = useResumenTerceros();
   const crear = useCrearDeuda();
 
   const guardar = (datos: NuevaDeuda) => {
@@ -46,13 +53,39 @@ export function ListaDeudas() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Deudas</h1>
+          <h1 className="text-xl font-semibold">{ETIQUETAS_DIRECCION[direccion]}</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Todo lo que debes, con su avance real.
+            {direccion === "propia"
+              ? "Todo lo que debes, con su avance real."
+              : "Plata que te deben. No entra en tu carga financiera ni en la fecha de libertad."}
           </p>
         </div>
         <Boton onClick={abrirForm}>+ Nueva deuda</Boton>
       </header>
+
+      {/* Las dos direcciones no se mezclan: una es plata que sale y la otra
+          plata que entra. */}
+      <div className="flex gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
+        {DIRECCIONES.map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => setDireccion(d)}
+            className={
+              direccion === d
+                ? "flex-1 rounded-md bg-white px-3 py-2 text-sm font-medium shadow-sm dark:bg-slate-950"
+                : "flex-1 rounded-md px-3 py-2 text-sm text-slate-600 dark:text-slate-400"
+            }
+          >
+            {ETIQUETAS_DIRECCION[d]}
+            {d === "tercero" && terceros.data?.total_pendiente ? (
+              <span className="ml-2 text-xs text-slate-400">
+                {formatearCLP(terceros.data.total_pendiente)}
+              </span>
+            ) : null}
+          </button>
+        ))}
+      </div>
 
       <div className="flex flex-wrap gap-1">
         {FILTROS.map((f) => (
@@ -77,13 +110,21 @@ export function ListaDeudas() {
         <ErrorCarga error={error} onReintentar={refetch} />
       ) : !deudas?.length ? (
         <Vacio
-          titulo="No hay deudas en este filtro"
+          titulo={
+            direccion === "propia"
+              ? "No hay deudas en este filtro"
+              : "Nadie te debe plata en este filtro"
+          }
           descripcion="Cuando registres una deuda, sus cuotas se generan automáticamente y aparecen acá."
           accion={<Boton onClick={abrirForm}>Registrar la primera deuda</Boton>}
         />
       ) : (
         <>
-          <ResumenGlobal deudas={deudas} />
+          {direccion === "tercero" && terceros.data ? (
+            <ResumenPorPersona resumen={terceros.data} />
+          ) : (
+            <ResumenGlobal deudas={deudas} />
+          )}
           <div className="space-y-3">
             {deudas.map((d) => (
               <TarjetaDeuda key={d.id} deuda={d} />
@@ -160,6 +201,7 @@ function TarjetaDeuda({ deuda }: { deuda: DeudaResumen }) {
             ) : null}
           </div>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            {deuda.deudor ? deuda.deudor + " · " : ""}
             {ETIQUETAS_TIPO_DEUDA[deuda.tipo]}
             {deuda.institucion ? ` · ${deuda.institucion}` : ""}
             {deuda.proxima_cuota

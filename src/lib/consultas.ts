@@ -21,11 +21,13 @@ export const RAICES = [
   "cuotas-mes",
   "deuda",
   "deudas",
+  "terceros",
   "estado-respaldo",
   "evolucion-gastos",
   "fecha-libertad",
   "movimientos",
   "periodo",
+  "meses-disponibles",
   "periodos",
   "presupuesto",
   "reporte-hormiga",
@@ -45,6 +47,7 @@ export type Raiz = (typeof RAICES)[number];
 export const claves = {
   deudas: (estado?: string | null) => ["deudas", estado ?? "todas"] as const,
   deuda: (id: number) => ["deuda", id] as const,
+  terceros: () => ["terceros"] as const,
   calendario: (meses: number) => ["calendario", meses] as const,
   cargaFinanciera: (anio: number, mes: number) => ["carga-financiera", anio, mes] as const,
   cuotasMes: (anio: number, mes: number) => ["cuotas-mes", anio, mes] as const,
@@ -53,7 +56,7 @@ export const claves = {
     ["simulacion", monto, tasa, cuotas, fecha] as const,
 
   periodo: (anio: number, mes: number) => ["periodo", anio, mes] as const,
-  periodos: () => ["periodos"] as const,
+  mesesDisponibles: () => ["meses-disponibles"] as const,
   resumenPeriodo: (anio: number, mes: number) => ["resumen-periodo", anio, mes] as const,
   movimientos: (anio: number, mes: number, filtro: unknown) =>
     ["movimientos", anio, mes, filtro] as const,
@@ -88,12 +91,14 @@ const POR_MOVIMIENTO = [
   "presupuesto",
   "evolucion-gastos",
   "reporte-hormiga",
+  "meses-disponibles",
 ] as const satisfies readonly Raiz[];
 
 /** Vistas sobre deudas y cuotas. */
 const POR_DEUDA = [
   "deudas",
   "deuda",
+  "terceros",
   "calendario",
   "carga-financiera",
   "cuotas-mes",
@@ -128,7 +133,7 @@ export const RELACIONES: Record<EventoDominio, readonly Raiz[]> = {
 
   // El sueldo del período alimenta el semáforo de carga y el "sin asignar"
   // del presupuesto.
-  periodo: ["periodo", "periodos", "resumen-periodo", "carga-financiera", "presupuesto"],
+  periodo: ["periodo", "meses-disponibles", "resumen-periodo", "carga-financiera", "presupuesto"],
 
   presupuesto: ["presupuesto"],
 };

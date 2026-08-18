@@ -116,6 +116,14 @@ export function useGenerarGastosServicios() {
   });
 }
 
+export function useActivarServicioEnMes() {
+  const invalidar = useInvalidarCatalogos("servicio");
+  return useMutation({
+    mutationFn: ipc.activarServicioEnMes,
+    onSuccess: invalidar,
+  });
+}
+
 /**
  * Materializa los gastos de los servicios del mes que se está viendo, una vez
  * por mes y por sesión. El comando es idempotente y no toca meses anteriores

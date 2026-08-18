@@ -5,6 +5,8 @@
  */
 
 export type TipoDeuda = "compra_cuotas" | "credito_consumo" | "avance" | "rotativo";
+/** propia = la debo yo; tercero = me la deben. */
+export type DireccionDeuda = "propia" | "tercero";
 export type EstadoDeuda = "vigente" | "pagada" | "repactada";
 export type EstadoCuota = "pendiente" | "pagada" | "atrasada";
 export type Semaforo = "verde" | "amarillo" | "rojo" | "sin_datos";
@@ -21,6 +23,9 @@ export interface Deuda {
   fecha_primera_cuota: string;
   estado: EstadoDeuda;
   notas: string | null;
+  direccion: DireccionDeuda;
+  /** Quién me debe. Solo viene si la dirección es tercero. */
+  deudor: string | null;
 }
 
 export interface Cuota {
@@ -105,7 +110,7 @@ export interface FechaLibertad {
 // ── Fase 2: períodos, categorías, gastos y servicios ─────────────────────────
 
 export type EstadoPeriodo = "abierto" | "cerrado";
-export type TipoCategoria = "fijo" | "variable" | "hormiga";
+export type TipoCategoria = "fijo" | "variable" | "hormiga" | "ingreso";
 export type TipoServicio = "basico" | "suscripcion";
 export type TipoMovimiento = "ingreso" | "gasto";
 export type MedioPago = "efectivo" | "debito" | "credito" | "transferencia";
@@ -117,6 +122,27 @@ export interface Periodo {
   sueldo_liquido: number;
   otros_ingresos: number;
   estado: EstadoPeriodo;
+}
+
+/** Un mes que tiene algo que mostrar. Alimenta el selector. */
+export interface MesConDatos {
+  anio: number;
+  mes: number;
+  /** 'YYYY-MM' */
+  clave: string;
+  n_movimientos: number;
+  n_presupuestos: number;
+  n_cuotas: number;
+  tiene_ingresos: boolean;
+}
+
+/** Hasta dónde se puede navegar y qué meses tienen contenido. */
+export interface RangoMeses {
+  desde_anio: number;
+  desde_mes: number;
+  hasta_anio: number;
+  hasta_mes: number;
+  meses: MesConDatos[];
 }
 
 export interface GastoPorCategoria {
@@ -146,6 +172,8 @@ export interface Categoria {
   tipo: TipoCategoria;
   color: string | null;
   activa: boolean;
+  /** Viene de fábrica: el reinicio de datos la conserva. */
+  es_semilla?: boolean;
   /** Código estable del sistema; si viene, la categoría no se puede eliminar. */
   codigo: string | null;
 }
@@ -189,8 +217,10 @@ export interface ServicioConReal extends Servicio {
   /** real - estimado. Positivo = te pasaste. */
   diferencia: number;
   fecha_vencimiento: string | null;
-  /** El servicio ya existía en el mes que se está viendo. */
+  /** El alta del servicio cubre el mes que se está viendo. */
   corresponde_al_mes: boolean;
+  /** Cuenta para el mes: su alta lo cubre, o se activó a mano. */
+  incluido_en_el_mes: boolean;
 }
 
 export interface ResumenServicios {
@@ -201,6 +231,8 @@ export interface ResumenServicios {
   diferencia: number;
   sin_registrar: number;
   por_confirmar: number;
+  /** El mes está cerrado: no acepta activaciones manuales. */
+  periodo_cerrado: boolean;
   servicios: ServicioConReal[];
 }
 
@@ -430,7 +462,18 @@ export const ETIQUETAS_TIPO_CATEGORIA: Record<TipoCategoria, string> = {
   fijo: "Fijo",
   variable: "Variable",
   hormiga: "Hormiga",
+  ingreso: "Ingreso",
 };
+
+export const ETIQUETAS_DIRECCION: Record<DireccionDeuda, string> = {
+  propia: "Mis deudas",
+  tercero: "Me deben",
+};
+
+/** Las categorías de ingreso no entran al presupuesto ni a los gastos. */
+export function esCategoriaDeGasto(tipo: TipoCategoria): boolean {
+  return tipo !== "ingreso";
+}
 
 export const ETIQUETAS_TIPO_SERVICIO: Record<TipoServicio, string> = {
   basico: "Servicio básico",
@@ -447,6 +490,23 @@ export const ETIQUETAS_MEDIO_PAGO: Record<MedioPago, string> = {
 export const MEDIOS_PAGO: MedioPago[] = ["debito", "credito", "efectivo", "transferencia"];
 
 /** Payload de creación/edición. */
+export interface DeudorResumen {
+  deudor: string;
+  n_deudas: number;
+  total_pendiente: number;
+  total_cobrado: number;
+  cuotas_pendientes: number;
+  cuotas_atrasadas: number;
+  proxima_fecha: string | null;
+}
+
+export interface ResumenTerceros {
+  total_pendiente: number;
+  total_cobrado: number;
+  cuotas_atrasadas: number;
+  deudores: DeudorResumen[];
+}
+
 export interface NuevaDeuda {
   descripcion: string;
   tipo: TipoDeuda;
@@ -456,6 +516,9 @@ export interface NuevaDeuda {
   n_cuotas: number;
   fecha_primera_cuota: string;
   notas: string | null;
+  direccion: DireccionDeuda;
+  /** Obligatorio si la dirección es tercero. */
+  deudor: string | null;
 }
 
 export const ETIQUETAS_TIPO_DEUDA: Record<TipoDeuda, string> = {

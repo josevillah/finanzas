@@ -12,14 +12,24 @@ pub enum TipoCategoria {
     Variable,
     /// Gasto chico y frecuente que se acumula sin que te des cuenta.
     Hormiga,
+    /// Clasifica plata que entra, no que sale. Las vistas de gasto y el
+    /// presupuesto la ignoran.
+    Ingreso,
 }
 
 impl TipoCategoria {
+    /// ¿Clasifica plata que sale? Lo usan el presupuesto y los reportes, que
+    /// solo miran gastos.
+    pub fn es_de_gasto(self) -> bool {
+        !matches!(self, TipoCategoria::Ingreso)
+    }
+
     pub fn como_texto(self) -> &'static str {
         match self {
             TipoCategoria::Fijo => "fijo",
             TipoCategoria::Variable => "variable",
             TipoCategoria::Hormiga => "hormiga",
+            TipoCategoria::Ingreso => "ingreso",
         }
     }
 
@@ -28,6 +38,7 @@ impl TipoCategoria {
             "fijo" => Ok(TipoCategoria::Fijo),
             "variable" => Ok(TipoCategoria::Variable),
             "hormiga" => Ok(TipoCategoria::Hormiga),
+            "ingreso" => Ok(TipoCategoria::Ingreso),
             otro => Err(AppError::validacion(format!(
                 "Tipo de categoría desconocido: '{otro}'"
             ))),
@@ -38,6 +49,9 @@ impl TipoCategoria {
 /// Código estable de la categoría a la que se imputan los pagos de cuotas.
 /// El usuario puede renombrarla; el código no cambia.
 pub const CODIGO_DEUDAS: &str = "deudas";
+
+/// Categoría donde entran los cobros de deudas de terceros.
+pub const CODIGO_COBROS: &str = "cobros";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Categoria {

@@ -37,6 +37,35 @@ impl TipoDeuda {
     }
 }
 
+/// Hacia dónde va la deuda: la debo yo, o me la deben.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DireccionDeuda {
+    /// La debo yo. Es lo que alimenta la carga financiera y la fecha de libertad.
+    Propia,
+    /// Me la deben. No cuenta como carga: es plata que va a entrar.
+    Tercero,
+}
+
+impl DireccionDeuda {
+    pub fn como_texto(self) -> &'static str {
+        match self {
+            DireccionDeuda::Propia => "propia",
+            DireccionDeuda::Tercero => "tercero",
+        }
+    }
+
+    pub fn desde_texto(texto: &str) -> Resultado<Self> {
+        match texto {
+            "propia" => Ok(DireccionDeuda::Propia),
+            "tercero" => Ok(DireccionDeuda::Tercero),
+            otro => Err(AppError::validacion(format!(
+                "Dirección de deuda desconocida: '{otro}'"
+            ))),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum EstadoDeuda {
@@ -79,11 +108,13 @@ pub struct Deuda {
     pub fecha_primera_cuota: String,
     pub estado: EstadoDeuda,
     pub notas: Option<String>,
+    pub direccion: DireccionDeuda,
+    /// Quién me debe. Solo viene si la dirección es tercero.
+    pub deudor: Option<String>,
 }
 
 impl Deuda {
-    pub const COLUMNAS: &'static str = "id, descripcion, tipo, institucion, monto_original, \
-                                        tasa_mensual, n_cuotas, fecha_primera_cuota, estado, notas";
+    pub const COLUMNAS: &'static str = "id, descripcion, tipo, institucion, monto_original, tasa_mensual, n_cuotas, fecha_primera_cuota, estado, notas, direccion, deudor";
 
     pub fn desde_fila(fila: &Row<'_>) -> rusqlite::Result<Self> {
         let tipo_txt: String = fila.get(2)?;
@@ -104,6 +135,11 @@ impl Deuda {
             fecha_primera_cuota: fila.get(7)?,
             estado: EstadoDeuda::desde_texto(&estado_txt).map_err(|e| conv(8, e))?,
             notas: fila.get(9)?,
+            direccion: {
+                let txt: String = fila.get(10)?;
+                DireccionDeuda::desde_texto(&txt).map_err(|e| conv(10, e))?
+            },
+            deudor: fila.get(11)?,
         })
     }
 }
@@ -121,6 +157,14 @@ pub struct NuevaDeuda {
     /// ISO 'YYYY-MM-DD'.
     pub fecha_primera_cuota: String,
     pub notas: Option<String>,
+    #[serde(default = "direccion_propia")]
+    pub direccion: DireccionDeuda,
+    /// Obligatorio si la dirección es tercero; se ignora si es propia.
+    pub deudor: Option<String>,
+}
+
+fn direccion_propia() -> DireccionDeuda {
+    DireccionDeuda::Propia
 }
 
 // ── DTOs de lectura ──────────────────────────────────────────────────────────
@@ -206,4 +250,28 @@ pub struct FechaLibertad {
     pub total_pendiente: Monto,
     /// Ordenadas por fecha de término ascendente.
     pub liberaciones: Vec<Liberacion>,
+}
+
+/// Lo que una persona me debe, sumando todas sus deudas.
+#[derive(Debug, Clone, Serialize)]
+pub struct DeudorResumen {
+    pub deudor: String,
+    pub n_deudas: i32,
+    pub total_pendiente: Monto,
+    pub total_cobrado: Monto,
+    pub cuotas_pendientes: i32,
+    pub cuotas_atrasadas: i32,
+    /// ISO del próximo vencimiento por cobrar.
+    pub proxima_fecha: Option<String>,
+}
+
+/// Vista "Me deben": nunca entra en la carga financiera ni en la fecha de
+/// libertad, que son sobre lo que debo yo.
+#[derive(Debug, Clone, Serialize)]
+pub struct ResumenTerceros {
+    pub total_pendiente: Monto,
+    pub total_cobrado: Monto,
+    pub cuotas_atrasadas: i32,
+    /// Ordenados por lo que falta cobrar, de mayor a menor.
+    pub deudores: Vec<DeudorResumen>,
 }

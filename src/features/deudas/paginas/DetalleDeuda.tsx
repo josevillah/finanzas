@@ -52,6 +52,7 @@ export function DetalleDeuda() {
   const { resumen, cuotas } = data;
   const deuda = resumen;
   const conInteres = deuda.tasa_mensual > 0;
+  const esCobro = deuda.direccion === "tercero";
 
   const guardarEdicion = (datos: NuevaDeuda) => {
     actualizar.mutate({ id: deudaId, datos }, { onSuccess: () => setEditando(false) });
@@ -174,6 +175,7 @@ export function DetalleDeuda() {
 
       <DialogoPagarCuota
         cuota={cuotaAPagar}
+        esCobro={esCobro}
         onCerrar={() => setCuotaAPagar(null)}
         onConfirmar={confirmarPago}
         guardando={pagar.isPending}

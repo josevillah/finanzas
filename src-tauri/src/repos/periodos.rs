@@ -97,3 +97,33 @@ pub fn actualizar_ingresos(
     )?;
     Ok(())
 }
+
+/// Por cada período existente, cuánto contenido real tiene.
+/// Devuelve (anio, mes, n_movimientos, n_presupuestos, tiene_ingresos).
+///
+/// Hace falta contar de verdad: `obtener_o_crear` corre desde comandos de solo
+/// lectura, así que con navegar a un mes ya queda su fila creada. La existencia
+/// de la fila no dice nada.
+pub fn resumen_de_periodos(conn: &Connection) -> Resultado<Vec<(i32, u32, i32, i32, bool)>> {
+    let mut stmt = conn.prepare(
+        "SELECT p.anio,
+                p.mes,
+                (SELECT COUNT(*) FROM movimientos m WHERE m.periodo_id = p.id),
+                (SELECT COUNT(*) FROM presupuestos b WHERE b.periodo_id = p.id),
+                (p.sueldo_liquido > 0 OR p.otros_ingresos > 0)
+         FROM periodos p
+         ORDER BY p.anio, p.mes",
+    )?;
+
+    let filas = stmt.query_map([], |f| {
+        Ok((
+            f.get(0)?,
+            f.get(1)?,
+            f.get(2)?,
+            f.get(3)?,
+            f.get::<_, i64>(4)? != 0,
+        ))
+    })?;
+
+    Ok(filas.collect::<rusqlite::Result<Vec<_>>>()?)
+}

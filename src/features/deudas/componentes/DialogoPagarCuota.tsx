@@ -11,6 +11,8 @@ import type { Cuota } from "@/types/dominio";
 
 interface Props {
   cuota: Cuota | null;
+  /** Cambia el lenguaje: en una deuda de tercero no se paga, se cobra. */
+  esCobro?: boolean;
   onCerrar: () => void;
   onConfirmar: (datos: { cuota_id: number; fecha_pago: string; monto_pagado: number }) => void;
   guardando: boolean;
@@ -18,7 +20,14 @@ interface Props {
 }
 
 /** Permite registrar un monto distinto al programado (pago parcial o recargo). */
-export function DialogoPagarCuota({ cuota, onCerrar, onConfirmar, guardando, error }: Props) {
+export function DialogoPagarCuota({
+  cuota,
+  esCobro = false,
+  onCerrar,
+  onConfirmar,
+  guardando,
+  error,
+}: Props) {
   const [fecha, setFecha] = useState(hoyISO());
   const [monto, setMonto] = useState(0);
 
@@ -38,7 +47,7 @@ export function DialogoPagarCuota({ cuota, onCerrar, onConfirmar, guardando, err
     <Modal
       abierto
       ancho="md"
-      titulo={`Pagar cuota ${cuota.numero}`}
+      titulo={`${esCobro ? "Cobrar" : "Pagar"} cuota ${cuota.numero}`}
       onCerrar={onCerrar}
       acciones={
         <>
@@ -49,7 +58,7 @@ export function DialogoPagarCuota({ cuota, onCerrar, onConfirmar, guardando, err
             onClick={() => onConfirmar({ cuota_id: cuota.id, fecha_pago: fecha, monto_pagado: monto })}
             disabled={guardando}
           >
-            {guardando ? "Guardando…" : "Registrar pago"}
+            {guardando ? "Guardando…" : esCobro ? "Registrar cobro" : "Registrar pago"}
           </Boton>
         </>
       }
@@ -62,12 +71,12 @@ export function DialogoPagarCuota({ cuota, onCerrar, onConfirmar, guardando, err
           </strong>
         </p>
 
-        <Campo etiqueta="Fecha de pago">
+        <Campo etiqueta={esCobro ? "Fecha de cobro" : "Fecha de pago"}>
           <Entrada type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
         </Campo>
 
         <Campo
-          etiqueta="Monto realmente pagado"
+          etiqueta={esCobro ? "Monto realmente cobrado" : "Monto realmente pagado"}
           ayuda={
             diferencia === 0
               ? "Coincide con el monto programado."

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use finanzas_lib::comandos::respaldo::{contar_registros, tabla_a_csv, validar_respaldo};
 use finanzas_lib::db::{conexion, migraciones};
-use finanzas_lib::modelos::deuda::{NuevaDeuda, TipoDeuda};
+use finanzas_lib::modelos::deuda::{NuevaDeuda, TipoDeuda, DireccionDeuda};
 use finanzas_lib::modelos::movimiento::{NuevoMovimiento, TipoMovimiento};
 use finanzas_lib::repos;
 use rusqlite::{Connection, DatabaseName};
@@ -67,6 +67,8 @@ fn con_datos(conn: &Connection) {
             n_cuotas: 6,
             fecha_primera_cuota: "2026-09-05".into(),
             notas: None,
+            direccion: DireccionDeuda::Propia,
+            deudor: None,
         },
     )
     .unwrap();
@@ -136,7 +138,7 @@ fn respaldar_y_restaurar_devuelve_los_mismos_datos() {
     let periodo = repos::periodos::obtener(&destino, 2026, 8).unwrap().unwrap();
     assert_eq!(periodo.sueldo_liquido, 1_450_000);
 
-    let deudas = repos::deudas::listar(&destino, None).unwrap();
+    let deudas = repos::deudas::listar(&destino, None, None).unwrap();
     assert_eq!(deudas.len(), 1);
     assert_eq!(repos::cuotas::listar_por_deuda(&destino, deudas[0].id).unwrap().len(), 6);
 }
@@ -162,7 +164,7 @@ fn restaurar_pisa_los_datos_que_habia() {
         .unwrap();
 
     // Quedan solo las categorías semilla del respaldo vacío.
-    assert!(repos::deudas::listar(&destino, None).unwrap().is_empty());
+    assert!(repos::deudas::listar(&destino, None, None).unwrap().is_empty());
     assert!(repos::periodos::listar(&destino).unwrap().is_empty());
 }
 

@@ -7,7 +7,7 @@ use finanzas_lib::comandos::reinicio::vaciar;
 use finanzas_lib::db::{conexion, migraciones};
 use finanzas_lib::dominio::{amortizacion, fechas};
 use finanzas_lib::modelos::categoria::{NuevaCategoria, TipoCategoria, CODIGO_DEUDAS};
-use finanzas_lib::modelos::deuda::{NuevaDeuda, TipoDeuda};
+use finanzas_lib::modelos::deuda::{NuevaDeuda, TipoDeuda, DireccionDeuda};
 use finanzas_lib::modelos::movimiento::{NuevoMovimiento, TipoMovimiento};
 use finanzas_lib::modelos::servicio::{NuevoServicio, TipoServicio};
 use finanzas_lib::repos;
@@ -75,6 +75,8 @@ fn con_datos(conn: &Connection) -> (i64, i64) {
             n_cuotas: 6,
             fecha_primera_cuota: "2026-09-05".into(),
             notas: None,
+            direccion: DireccionDeuda::Propia,
+            deudor: None,
         },
     )
     .unwrap();
@@ -156,7 +158,7 @@ fn las_categorias_de_fabrica_sobreviven_y_quedan_activas() {
     let resultado = vaciar(&conn, false).unwrap();
 
     let categorias = repos::categorias::listar(&conn, false).unwrap();
-    assert_eq!(categorias.len(), 14, "quedan las 14 de fábrica");
+    assert_eq!(categorias.len(), 15, "quedan las 15 de fábrica");
     assert!(
         categorias.iter().all(|c| c.activa),
         "todas deben quedar disponibles otra vez"
@@ -204,7 +206,7 @@ fn las_categorias_propias_se_borran() {
     let conn = base();
     con_datos(&conn);
 
-    assert_eq!(contar(&conn, "categorias"), 15, "14 de fábrica + Mascotas");
+    assert_eq!(contar(&conn, "categorias"), 16, "15 de fábrica + Mascotas");
 
     let resultado = vaciar(&conn, false).unwrap();
 
@@ -235,7 +237,7 @@ fn renombrar_una_semilla_no_la_convierte_en_propia() {
     vaciar(&conn, false).unwrap();
 
     let categorias = repos::categorias::listar(&conn, false).unwrap();
-    assert_eq!(categorias.len(), 14);
+    assert_eq!(categorias.len(), 15);
     assert!(
         categorias.iter().any(|c| c.nombre == "Comida rápida"),
         "la semilla renombrada sobrevive y conserva el nombre que le pusiste"

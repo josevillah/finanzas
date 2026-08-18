@@ -10,6 +10,7 @@ import { parsearTasaPorcentaje } from "@/lib/moneda";
 import {
   ETIQUETAS_TIPO_DEUDA,
   type Deuda,
+  type DireccionDeuda,
   type NuevaDeuda,
   type TipoDeuda,
 } from "@/types/dominio";
@@ -28,6 +29,8 @@ interface Props {
 }
 
 interface EstadoForm {
+  direccion: DireccionDeuda;
+  deudor: string;
   descripcion: string;
   tipo: TipoDeuda;
   institucion: string;
@@ -40,6 +43,8 @@ interface EstadoForm {
 
 function formVacio(): EstadoForm {
   return {
+    direccion: "propia",
+    deudor: "",
     descripcion: "",
     tipo: "compra_cuotas",
     institucion: "",
@@ -53,6 +58,8 @@ function formVacio(): EstadoForm {
 
 function formDesde(deuda: Deuda): EstadoForm {
   return {
+    direccion: deuda.direccion,
+    deudor: deuda.deudor ?? "",
     descripcion: deuda.descripcion,
     tipo: deuda.tipo,
     institucion: deuda.institucion ?? "",
@@ -88,10 +95,12 @@ export function FormularioDeuda({ abierto, deuda, onCerrar, onGuardar, guardando
 
   const errorLocal = useMemo(() => {
     if (!form.descripcion.trim()) return "Ponle una descripción a la deuda.";
+    if (form.direccion === "tercero" && !form.deudor.trim())
+      return "Indica quién te debe esta plata.";
     if (form.montoOriginal <= 0) return "El monto debe ser mayor a 0.";
     if (nCuotas < 1) return "Indica al menos 1 cuota.";
     return null;
-  }, [form.descripcion, form.montoOriginal, nCuotas]);
+  }, [form.descripcion, form.direccion, form.deudor, form.montoOriginal, nCuotas]);
 
   const enviar = () => {
     if (errorLocal) return;
@@ -104,6 +113,8 @@ export function FormularioDeuda({ abierto, deuda, onCerrar, onGuardar, guardando
       n_cuotas: nCuotas,
       fecha_primera_cuota: form.fechaPrimeraCuota,
       notas: form.notas.trim() || null,
+      direccion: form.direccion,
+      deudor: form.direccion === "tercero" ? form.deudor.trim() : null,
     });
   };
 
@@ -126,6 +137,34 @@ export function FormularioDeuda({ abierto, deuda, onCerrar, onGuardar, guardando
     >
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-4">
+          {/* La dirección va primero: cambia el sentido de todo el formulario. */}
+          <div className="flex gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
+            {(["propia", "tercero"] as DireccionDeuda[]).map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setForm({ ...form, direccion: d })}
+                className={
+                  form.direccion === d
+                    ? "flex-1 rounded-md bg-white px-3 py-1.5 text-sm font-medium shadow-sm dark:bg-slate-950"
+                    : "flex-1 rounded-md px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400"
+                }
+              >
+                {d === "propia" ? "La debo yo" : "Me la deben"}
+              </button>
+            ))}
+          </div>
+
+          {form.direccion === "tercero" ? (
+            <Campo etiqueta="¿Quién te debe?" ayuda="Se usa para agrupar en la vista Me deben.">
+              <Entrada
+                placeholder="Ej: Ignacia"
+                value={form.deudor}
+                onChange={(e) => setForm({ ...form, deudor: e.target.value })}
+              />
+            </Campo>
+          ) : null}
+
           <Campo etiqueta="Descripción">
             <Entrada
               autoFocus

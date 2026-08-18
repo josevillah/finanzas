@@ -14,6 +14,7 @@ import {
   type MedioPago,
   type MovimientoDetalle,
   type NuevoMovimiento,
+  type TipoCategoria,
   type TipoMovimiento,
 } from "@/types/dominio";
 
@@ -89,12 +90,19 @@ export function FormularioMovimiento({
     return null;
   }, [form.monto, form.fecha]);
 
-  // Las categorías se agrupan por tipo para no perderse en una lista larga.
+  // Las categorías se agrupan por tipo para no perderse en una lista larga, y
+  // se ofrecen solo las que corresponden: las de ingreso no sirven para un
+  // gasto, ni al revés.
+  const tiposVisibles: TipoCategoria[] =
+    form.tipo === "ingreso" ? ["ingreso"] : ["fijo", "variable", "hormiga"];
+
   const porTipo = useMemo(() => {
-    const grupos = { fijo: [], variable: [], hormiga: [] } as Record<
-      string,
-      Array<{ id: number; nombre: string }>
-    >;
+    const grupos: Record<string, Array<{ id: number; nombre: string }>> = {
+      fijo: [],
+      variable: [],
+      hormiga: [],
+      ingreso: [],
+    };
     for (const c of categorias.data ?? []) {
       grupos[c.tipo]?.push({ id: c.id, nombre: c.nombre });
     }
@@ -137,7 +145,8 @@ export function FormularioMovimiento({
             <button
               key={t}
               type="button"
-              onClick={() => setForm({ ...form, tipo: t, servicioId: "" })}
+              // Cambiar de gasto a ingreso invalida la categoría elegida.
+              onClick={() => setForm({ ...form, tipo: t, servicioId: "", categoriaId: "" })}
               className={
                 form.tipo === t
                   ? "flex-1 rounded-md bg-white px-3 py-1.5 text-sm font-medium shadow-sm dark:bg-slate-950"
@@ -169,7 +178,7 @@ export function FormularioMovimiento({
             onChange={(e) => setForm({ ...form, categoriaId: e.target.value })}
           >
             <option value="">Sin categoría</option>
-            {(["fijo", "variable", "hormiga"] as const).map((tipo) =>
+            {tiposVisibles.map((tipo) =>
               porTipo[tipo]?.length ? (
                 <optgroup key={tipo} label={ETIQUETAS_TIPO_CATEGORIA[tipo]}>
                   {porTipo[tipo].map((c) => (

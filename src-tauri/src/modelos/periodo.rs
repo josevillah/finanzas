@@ -60,3 +60,29 @@ pub struct ResumenPeriodo {
     pub n_movimientos: i32,
     pub por_categoria: Vec<GastoPorCategoria>,
 }
+
+/// Un mes que tiene algo que mostrar. Alimenta el selector de mes y año.
+#[derive(Debug, Clone, Serialize)]
+pub struct MesConDatos {
+    pub anio: i32,
+    pub mes: u32,
+    /// 'YYYY-MM'.
+    pub clave: String,
+    pub n_movimientos: i32,
+    pub n_presupuestos: i32,
+    /// Cuotas que vencen ese mes, de deudas vigentes.
+    pub n_cuotas: i32,
+    pub tiene_ingresos: bool,
+}
+
+/// Hasta dónde puede navegar el usuario y qué meses tienen contenido.
+#[derive(Debug, Clone, Serialize)]
+pub struct RangoMeses {
+    pub desde_anio: i32,
+    pub desde_mes: u32,
+    /// Siempre el mes calendario actual: no tiene sentido navegar al futuro.
+    pub hasta_anio: i32,
+    pub hasta_mes: u32,
+    /// Solo los meses con datos, en orden cronológico.
+    pub meses: Vec<MesConDatos>,
+}

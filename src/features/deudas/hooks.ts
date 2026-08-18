@@ -2,14 +2,22 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { claves, useInvalidar } from "@/lib/consultas";
 import * as ipc from "@/lib/ipc";
-import type { EstadoDeuda, NuevaDeuda } from "@/types/dominio";
+import type { DireccionDeuda, EstadoDeuda, NuevaDeuda } from "@/types/dominio";
 
 // ── lecturas ─────────────────────────────────────────────────────────────────
 
-export function useDeudas(filtroEstado?: EstadoDeuda | null) {
+export function useDeudas(filtroEstado?: EstadoDeuda | null, direccion?: DireccionDeuda | null) {
   return useQuery({
-    queryKey: claves.deudas(filtroEstado),
-    queryFn: () => ipc.listarDeudas(filtroEstado),
+    queryKey: [...claves.deudas(filtroEstado), direccion ?? "todas"],
+    queryFn: () => ipc.listarDeudas(filtroEstado, direccion),
+  });
+}
+
+/** Resumen por persona de lo que me deben. */
+export function useResumenTerceros() {
+  return useQuery({
+    queryKey: claves.terceros(),
+    queryFn: () => ipc.resumenTerceros(),
   });
 }
 

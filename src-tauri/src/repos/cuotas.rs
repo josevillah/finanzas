@@ -192,6 +192,7 @@ pub fn carga_por_mes(
          FROM cuotas c
          JOIN deudas d ON d.id = c.deuda_id
          WHERE d.estado = 'vigente'
+           AND d.direccion = 'propia'
            AND c.fecha_vencimiento >= ?1
            AND c.fecha_vencimiento <= ?2
          GROUP BY clave
@@ -212,6 +213,7 @@ pub fn total_en_rango(conn: &Connection, desde_iso: &str, hasta_iso: &str) -> Re
          FROM cuotas c
          JOIN deudas d ON d.id = c.deuda_id
          WHERE d.estado = 'vigente'
+           AND d.direccion = 'propia'
            AND c.fecha_vencimiento >= ?1
            AND c.fecha_vencimiento <= ?2",
         params![desde_iso, hasta_iso],
@@ -237,7 +239,8 @@ pub fn pendientes_con_deuda(conn: &Connection) -> Resultado<Vec<(Cuota, String)>
         "SELECT {}, d.descripcion
          FROM cuotas c
          JOIN deudas d ON d.id = c.deuda_id
-         WHERE d.estado = 'vigente' AND c.estado <> 'pagada'
+         WHERE d.estado = 'vigente'
+           AND d.direccion = 'propia' AND c.estado <> 'pagada'
          ORDER BY c.fecha_vencimiento, c.numero",
         columnas_alias_c()
     );
@@ -260,6 +263,7 @@ pub fn en_rango_con_deuda(
          FROM cuotas c
          JOIN deudas d ON d.id = c.deuda_id
          WHERE d.estado = 'vigente'
+           AND d.direccion = 'propia'
            AND c.fecha_vencimiento >= ?1
            AND c.fecha_vencimiento <= ?2
          ORDER BY c.fecha_vencimiento, c.numero",
@@ -270,5 +274,26 @@ pub fn en_rango_con_deuda(
     let filas = stmt.query_map(params![desde_iso, hasta_iso], |f| {
         Ok((Cuota::desde_fila(f)?, f.get::<_, String>(10)?))
     })?;
+    Ok(filas.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+/// Meses que tienen cuotas venciendo, de deudas vigentes.
+/// Devuelve (anio, mes, n_cuotas).
+///
+/// Un mes puede tener cuotas sin que exista su período: las cuotas cuelgan de
+/// la deuda, no del período.
+pub fn meses_con_vencimientos(conn: &Connection) -> Resultado<Vec<(i32, u32, i32)>> {
+    let mut stmt = conn.prepare(
+        "SELECT CAST(strftime('%Y', c.fecha_vencimiento) AS INTEGER),
+                CAST(strftime('%m', c.fecha_vencimiento) AS INTEGER),
+                COUNT(*)
+         FROM cuotas c
+         JOIN deudas d ON d.id = c.deuda_id
+         WHERE d.estado = 'vigente'
+         GROUP BY 1, 2
+         ORDER BY 1, 2",
+    )?;
+
+    let filas = stmt.query_map([], |f| Ok((f.get(0)?, f.get(1)?, f.get(2)?)))?;
     Ok(filas.collect::<rusqlite::Result<Vec<_>>>()?)
 }

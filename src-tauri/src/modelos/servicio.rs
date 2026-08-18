@@ -99,8 +99,11 @@ pub struct ServicioConReal {
     pub diferencia: Monto,
     /// ISO del vencimiento de este mes, si el servicio tiene día definido.
     pub fecha_vencimiento: Option<String>,
-    /// El servicio ya existía en este mes, así que le toca generar gasto.
+    /// El alta del servicio cubre este mes, así que le toca generar gasto solo.
     pub corresponde_al_mes: bool,
+    /// Cuenta para este mes: o su alta lo cubre, o se activó a mano y ya tiene
+    /// gasto registrado. Es lo que mira la interfaz y lo que suman los totales.
+    pub incluido_en_el_mes: bool,
 }
 
 /// Comparación estimado vs. real de todos los servicios activos del período.
@@ -115,5 +118,7 @@ pub struct ResumenServicios {
     pub sin_registrar: i32,
     /// Servicios cuyo gasto sigue siendo el estimado sin confirmar.
     pub por_confirmar: i32,
+    /// El mes está cerrado: no acepta activaciones manuales.
+    pub periodo_cerrado: bool,
     pub servicios: Vec<ServicioConReal>,
 }

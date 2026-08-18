@@ -145,6 +145,7 @@ pub fn run() {
             comandos::deudas::cambiar_estado_deuda,
             comandos::deudas::listar_deudas,
             comandos::deudas::obtener_deuda,
+            comandos::deudas::resumen_terceros,
             // cuotas
             comandos::cuotas::pagar_cuota,
             comandos::cuotas::deshacer_pago_cuota,
@@ -156,7 +157,7 @@ pub fn run() {
             comandos::analisis::fecha_libertad,
             // períodos
             comandos::periodos::obtener_periodo,
-            comandos::periodos::listar_periodos,
+            comandos::periodos::meses_disponibles,
             comandos::periodos::guardar_ingresos_periodo,
             comandos::periodos::cambiar_estado_periodo,
             comandos::periodos::resumen_periodo,
@@ -178,6 +179,7 @@ pub fn run() {
             comandos::servicios::actualizar_servicio,
             comandos::servicios::eliminar_servicio,
             comandos::servicios::generar_gastos_servicios,
+            comandos::servicios::activar_servicio_en_mes,
             comandos::servicios::resumen_servicios,
             // presupuesto
             comandos::presupuestos::resumen_presupuesto,

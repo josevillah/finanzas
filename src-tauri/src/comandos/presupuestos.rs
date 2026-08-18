@@ -46,8 +46,11 @@ pub fn resumen_presupuesto(
 
     // Entran al listado todas las categorías activas, más las inactivas que
     // igual tengan plata puesta o gastada este mes.
+    // Las categorías de ingreso quedan fuera: el presupuesto es sobre lo que
+    // sale, y una línea de "Préstamos cobrados" con $0 gastado solo confunde.
     let relevantes: HashSet<i64> = categorias
         .iter()
+        .filter(|c| c.tipo.es_de_gasto())
         .filter(|c| c.activa || asignados.contains_key(&c.id) || gasto_por_cat.contains_key(&c.id))
         .map(|c| c.id)
         .collect();

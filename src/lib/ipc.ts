@@ -17,6 +17,7 @@ import type {
   CuotaConDeuda,
   DeudaDetalle,
   DeudaResumen,
+  DireccionDeuda,
   EstadoActualizacion,
   EstadoDeuda,
   EstadoPeriodo,
@@ -31,11 +32,13 @@ import type {
   NuevoMovimiento,
   NuevoServicio,
   Periodo,
+  RangoMeses,
   ReporteHormiga,
   ResultadoExportacion,
   ResultadoReinicio,
   ResultadoRestauracion,
   ResumenReinicio,
+  ResumenTerceros,
   ResumenPeriodo,
   ResumenPresupuesto,
   ResumenServicios,
@@ -74,8 +77,19 @@ export function cambiarEstadoDeuda(id: number, nuevoEstado: EstadoDeuda): Promis
   return invoke("cambiar_estado_deuda", { id, nuevoEstado });
 }
 
-export function listarDeudas(filtroEstado?: EstadoDeuda | null): Promise<DeudaResumen[]> {
-  return invoke("listar_deudas", { filtroEstado: filtroEstado ?? null });
+export function listarDeudas(
+  filtroEstado?: EstadoDeuda | null,
+  direccion?: DireccionDeuda | null,
+): Promise<DeudaResumen[]> {
+  return invoke("listar_deudas", {
+    filtroEstado: filtroEstado ?? null,
+    direccion: direccion ?? null,
+  });
+}
+
+/** Cuánto me debe cada persona. Alimenta la vista "Me deben". */
+export function resumenTerceros(): Promise<ResumenTerceros> {
+  return invoke("resumen_terceros");
 }
 
 export function obtenerDeuda(id: number): Promise<DeudaDetalle> {
@@ -138,8 +152,8 @@ export function guardarIngresosPeriodo(datos: {
   });
 }
 
-export function listarPeriodos(): Promise<Periodo[]> {
-  return invoke("listar_periodos");
+export function mesesDisponibles(): Promise<RangoMeses> {
+  return invoke("meses_disponibles");
 }
 
 export function resumenPeriodo(anio: number, mes: number): Promise<ResumenPeriodo> {
@@ -232,6 +246,24 @@ export function eliminarServicio(id: number): Promise<void> {
 
 export function resumenServicios(anio: number, mes: number): Promise<ResumenServicios> {
   return invoke("resumen_servicios", { anio, mes });
+}
+
+/**
+ * Registra a mano el gasto de un servicio en un mes que su alta no cubre.
+ * No modifica la fecha de alta: vale solo para ese mes.
+ */
+export function activarServicioEnMes(datos: {
+  servicioId: number;
+  anio: number;
+  mes: number;
+  monto: number;
+}): Promise<number> {
+  return invoke("activar_servicio_en_mes", {
+    servicioId: datos.servicioId,
+    anio: datos.anio,
+    mes: datos.mes,
+    monto: datos.monto,
+  });
 }
 
 /** Crea el gasto del mes de cada servicio que aún no lo tenga. Devuelve cuántos. */

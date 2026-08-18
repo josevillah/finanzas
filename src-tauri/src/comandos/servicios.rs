@@ -4,6 +4,7 @@ use chrono::{Datelike, NaiveDate};
 use rusqlite::Connection;
 use tauri::State;
 
+use crate::dominio::dinero::Monto;
 use crate::dominio::fechas;
 use crate::error::{AppError, Resultado};
 use crate::modelos::servicio::{NuevoServicio, ResumenServicios, Servicio, ServicioConReal};
@@ -201,6 +202,73 @@ pub fn generar_gastos_servicios(
     Ok(creados)
 }
 
+/// Registra a mano el gasto de un servicio en un mes que su alta no cubre.
+///
+/// Es la salida para el caso "este servicio ya lo pagaba, pero lo di de alta
+/// recién ahora". **No mueve `fecha_alta`**: es una activación puntual para
+/// ese mes, no un cambio retroactivo del servicio, así que la generación
+/// automática sigue sin retroceder por su cuenta.
+#[tauri::command]
+pub fn activar_servicio_en_mes(
+    estado: State<'_, EstadoApp>,
+    servicio_id: i64,
+    anio: i32,
+    mes: u32,
+    monto: Monto,
+) -> Resultado<i64> {
+    validar_mes(mes)?;
+
+    let mut guard = estado.conn();
+    let tx = guard.transaction()?;
+
+    let id = activar_en_mes(&tx, servicio_id, anio, mes, monto)?;
+
+    tx.commit()?;
+    Ok(id)
+}
+
+/// Núcleo de la activación manual, sin la capa de Tauri para poder cubrirlo
+/// con tests.
+pub fn activar_en_mes(
+    conn: &Connection,
+    servicio_id: i64,
+    anio: i32,
+    mes: u32,
+    monto: Monto,
+) -> Resultado<i64> {
+    if monto <= 0 {
+        return Err(AppError::validacion("El monto debe ser mayor a 0."));
+    }
+
+    let servicio = repos::servicios::obtener(conn, servicio_id)?;
+    let periodo = repos::periodos::obtener_o_crear(conn, anio, mes)?;
+    repos::periodos::exigir_abierto(conn, periodo.id)?;
+
+    if repos::movimientos::tiene_movimientos_de_servicio(conn, servicio_id, periodo.id)? {
+        return Err(AppError::conflicto(format!(
+            "{} ya tiene un gasto registrado en ese mes.",
+            servicio.nombre
+        )));
+    }
+
+    // Misma regla de fecha que la generación automática: el día de vencimiento
+    // recortado al mes, o el 1 si el servicio no tiene día definido.
+    let dia = servicio
+        .dia_vencimiento
+        .map(|d| (d.clamp(1, 31) as u32).min(fechas::dias_del_mes(anio, mes)))
+        .unwrap_or(1);
+
+    repos::movimientos::insertar_activacion_manual(
+        conn,
+        periodo.id,
+        servicio_id,
+        servicio.categoria_id,
+        &format!("{anio:04}-{mes:02}-{dia:02}"),
+        monto,
+        &servicio.nombre,
+    )
+}
+
 /// Estimado vs. real del mes para cada servicio activo.
 #[tauri::command]
 pub fn resumen_servicios(
@@ -239,9 +307,14 @@ pub fn resumen_servicios(
                 format!("{anio:04}-{mes:02}-{dia:02}")
             });
 
+            let cubierto = corresponde_al_mes(&s, &ultimo_dia_iso);
+
             ServicioConReal {
                 diferencia: monto_real - s.monto_estimado,
-                corresponde_al_mes: corresponde_al_mes(&s, &ultimo_dia_iso),
+                corresponde_al_mes: cubierto,
+                // Activarlo a mano no mueve su fecha de alta: lo que lo hace
+                // contar para el mes es tener gasto registrado.
+                incluido_en_el_mes: cubierto || n_movimientos > 0,
                 categoria_nombre,
                 monto_real,
                 n_movimientos,
@@ -252,10 +325,11 @@ pub fn resumen_servicios(
         })
         .collect();
 
-    // Solo cuentan los servicios que ya existían en el mes: los dados de alta
-    // después no deben inflar el estimado de meses previos.
+    // Cuentan los que el alta cubre, más los que se activaron a mano en este
+    // mes. Los dados de alta después y sin activar no deben inflar el estimado
+    // de meses previos.
     let vigentes: Vec<&ServicioConReal> =
-        filas.iter().filter(|f| f.corresponde_al_mes).collect();
+        filas.iter().filter(|f| f.incluido_en_el_mes).collect();
 
     let total_estimado = vigentes.iter().map(|f| f.servicio.monto_estimado).sum();
     let total_real = vigentes.iter().map(|f| f.monto_real).sum::<i64>();
@@ -270,6 +344,7 @@ pub fn resumen_servicios(
         diferencia: total_real - total_estimado,
         sin_registrar,
         por_confirmar,
+        periodo_cerrado: periodo.estado == "cerrado",
         servicios: filas,
     })
 }

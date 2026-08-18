@@ -27,10 +27,11 @@ export function useResumenPeriodo(anio: number, mes: number) {
   });
 }
 
-export function usePeriodos() {
+/** Rango navegable y qué meses tienen contenido. Alimenta el selector. */
+export function useMesesDisponibles() {
   return useQuery({
-    queryKey: claves.periodos(),
-    queryFn: () => ipc.listarPeriodos(),
+    queryKey: claves.mesesDisponibles(),
+    queryFn: () => ipc.mesesDisponibles(),
   });
 }
 

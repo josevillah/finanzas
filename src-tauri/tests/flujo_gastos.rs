@@ -5,7 +5,7 @@ use finanzas_lib::db::{conexion, migraciones};
 use finanzas_lib::dominio::amortizacion;
 use finanzas_lib::dominio::fechas;
 use finanzas_lib::modelos::categoria::{NuevaCategoria, TipoCategoria, CODIGO_DEUDAS};
-use finanzas_lib::modelos::deuda::{NuevaDeuda, TipoDeuda};
+use finanzas_lib::modelos::deuda::{NuevaDeuda, TipoDeuda, DireccionDeuda};
 use finanzas_lib::modelos::movimiento::{
     FiltroMovimientos, MedioPago, NuevoMovimiento, TipoMovimiento,
 };
@@ -206,6 +206,8 @@ fn deuda_con_cuotas(conn: &Connection) -> i64 {
         n_cuotas: 6,
         fecha_primera_cuota: "2026-09-05".into(),
         notas: None,
+        direccion: DireccionDeuda::Propia,
+        deudor: None,
     };
 
     let cuotas = amortizacion::generar(600_000, 0.0, 6, fechas::desde_iso("2026-09-05").unwrap())

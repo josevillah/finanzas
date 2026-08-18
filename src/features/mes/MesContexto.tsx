@@ -1,7 +1,10 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
 import { Boton } from "@/components/ui/Boton";
-import { formatearMesTitulo, mesActual } from "@/lib/fechas";
+import { mesAbsoluto, mesActual } from "@/lib/fechas";
+
+import { SelectorMesAnio } from "./componentes/SelectorMesAnio";
+import { useMesesDisponibles } from "./hooks";
 
 interface ValorMes {
   anio: number;
@@ -51,21 +54,41 @@ export function useMes(): ValorMes {
   return valor;
 }
 
-/** Control de mes anterior / siguiente, compartido por las pantallas del período. */
+/** Control de mes, compartido por todas las pantallas del período. */
 export function SelectorMes() {
-  const { anio, mes, irMes, volverAHoy, esMesActual } = useMes();
+  const { anio, mes, irMes, fijarMes, volverAHoy, esMesActual } = useMes();
+  const { data: rango } = useMesesDisponibles();
+
+  // Mientras el rango no llega, las flechas no se bloquean: es peor dejar el
+  // control muerto un instante que permitir un mes de más.
+  const actual = mesAbsoluto(anio, mes);
+  const puedeRetroceder = !rango || actual > mesAbsoluto(rango.desde_anio, rango.desde_mes);
+  const puedeAvanzar = !rango || actual < mesAbsoluto(rango.hasta_anio, rango.hasta_mes);
 
   return (
     <div className="flex items-center gap-2">
-      <Boton variante="secundario" tamano="sm" onClick={() => irMes(-1)} aria-label="Mes anterior">
+      <Boton
+        variante="secundario"
+        tamano="sm"
+        onClick={() => irMes(-1)}
+        disabled={!puedeRetroceder}
+        aria-label="Mes anterior"
+      >
         ←
       </Boton>
-      <span className="min-w-44 text-center text-sm font-medium">
-        {formatearMesTitulo(anio, mes)}
-      </span>
-      <Boton variante="secundario" tamano="sm" onClick={() => irMes(1)} aria-label="Mes siguiente">
+
+      <SelectorMesAnio anio={anio} mes={mes} rango={rango} onElegir={fijarMes} />
+
+      <Boton
+        variante="secundario"
+        tamano="sm"
+        onClick={() => irMes(1)}
+        disabled={!puedeAvanzar}
+        aria-label="Mes siguiente"
+      >
         →
       </Boton>
+
       {!esMesActual ? (
         <Boton variante="fantasma" tamano="sm" onClick={volverAHoy}>
           Hoy

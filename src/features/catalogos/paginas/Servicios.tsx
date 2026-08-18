@@ -17,8 +17,10 @@ import {
   type ServicioConReal,
 } from "@/types/dominio";
 
+import { DialogoActivarServicio } from "../componentes/DialogoActivarServicio";
 import { FormularioServicio } from "../componentes/FormularioServicio";
 import {
+  useActivarServicioEnMes,
   useActualizarServicio,
   useCrearServicio,
   useEliminarServicio,
@@ -42,10 +44,12 @@ export function Servicios() {
   const [formAbierto, setFormAbierto] = useState(false);
   const [editando, setEditando] = useState<Servicio | null>(null);
   const [porBorrar, setPorBorrar] = useState<Servicio | null>(null);
+  const [porActivar, setPorActivar] = useState<ServicioConReal | null>(null);
 
   const crear = useCrearServicio();
   const actualizar = useActualizarServicio();
   const eliminar = useEliminarServicio();
+  const activar = useActivarServicioEnMes();
 
   const guardar = (datos: NuevoServicio) => {
     const alCerrar = { onSuccess: () => setFormAbierto(false) };
@@ -144,10 +148,11 @@ export function Servicios() {
             </div>
           </div>
 
-          {resumen.data.servicios.some((s) => !s.corresponde_al_mes) ? (
+          {resumen.data.servicios.some((s) => !s.incluido_en_el_mes) ? (
             <p className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800/60 dark:text-slate-400">
               Algunos servicios se dieron de alta después de este mes, así que no cuentan acá ni
-              generan gasto. Aparecen abajo en gris.
+              generan gasto. Aparecen abajo en gris; si ya los pagabas por entonces, puedes
+              registrarlos con "Activar en este mes".
             </p>
           ) : null}
 
@@ -157,6 +162,11 @@ export function Servicios() {
                 <FilaServicio
                   key={s.id}
                   servicio={s}
+                  periodoCerrado={resumen.data.periodo_cerrado}
+                  onActivar={() => {
+                    activar.reset();
+                    setPorActivar(s);
+                  }}
                   onEditar={() => {
                     actualizar.reset();
                     setEditando(s);
@@ -198,6 +208,18 @@ export function Servicios() {
           </ul>
         </div>
       ) : null}
+
+      <DialogoActivarServicio
+        servicio={porActivar}
+        anio={anio}
+        mes={mes}
+        onCerrar={() => setPorActivar(null)}
+        onConfirmar={(datos) =>
+          activar.mutate(datos, { onSuccess: () => setPorActivar(null) })
+        }
+        guardando={activar.isPending}
+        error={activar.error}
+      />
 
       <FormularioServicio
         abierto={formAbierto}
@@ -246,16 +268,21 @@ export function Servicios() {
 
 function FilaServicio({
   servicio,
+  periodoCerrado,
   onEditar,
+  onActivar,
   onBorrar,
 }: {
   servicio: ServicioConReal;
+  periodoCerrado: boolean;
   onEditar: () => void;
+  onActivar: () => void;
   onBorrar: () => void;
 }) {
   const sinRegistrar = servicio.n_movimientos === 0;
   const porConfirmar = servicio.n_estimados > 0;
-  const fueraDelMes = !servicio.corresponde_al_mes;
+  // Activarlo a mano no mueve su alta, pero sí lo hace contar para el mes.
+  const fueraDelMes = !servicio.incluido_en_el_mes;
 
   return (
     <li
@@ -321,6 +348,21 @@ function FilaServicio({
         </div>
 
         <span className="flex gap-1">
+          {fueraDelMes ? (
+            <Boton
+              variante="secundario"
+              tamano="sm"
+              onClick={onActivar}
+              disabled={periodoCerrado}
+              title={
+                periodoCerrado
+                  ? "El mes está cerrado: reábrelo para poder registrar gastos"
+                  : "Registrar a mano el gasto de este servicio en el mes"
+              }
+            >
+              Activar en este mes
+            </Boton>
+          ) : null}
           <Boton variante="fantasma" tamano="sm" onClick={onEditar}>
             Editar
           </Boton>

@@ -242,7 +242,7 @@ pub fn exportar_json(estado: State<'_, EstadoApp>, destino: String) -> Resultado
         periodos: repos::periodos::listar(&guard)?,
         categorias: repos::categorias::listar(&guard, false)?,
         servicios: repos::servicios::listar(&guard, false)?,
-        deudas: repos::deudas::listar(&guard, None)?,
+        deudas: repos::deudas::listar(&guard, None, None)?,
         cuotas: repos::cuotas::listar_todas(&guard)?,
         movimientos: repos::movimientos::listar_todos(&guard)?,
         presupuestos: repos::presupuestos::listar_todos(&guard)?,

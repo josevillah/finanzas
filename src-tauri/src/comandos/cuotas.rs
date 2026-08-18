@@ -4,7 +4,9 @@ use tauri::State;
 
 use crate::dominio::fechas;
 use crate::error::{AppError, Resultado};
-use crate::modelos::categoria::CODIGO_DEUDAS;
+use crate::modelos::categoria::{CODIGO_COBROS, CODIGO_DEUDAS};
+use crate::modelos::deuda::DireccionDeuda;
+use crate::modelos::movimiento::TipoMovimiento;
 use crate::modelos::cuota::{Cuota, CuotaConDeuda, PagoCuota};
 use crate::repos;
 use crate::EstadoApp;
@@ -111,13 +113,25 @@ pub fn sincronizar_movimiento_de_cuota(
     // Un mes cerrado está congelado: tampoco puede recibir el gasto de una cuota.
     repos::periodos::exigir_abierto(conn, periodo.id)?;
 
-    // El pago de una cuota se imputa a la categoría marcada con el código
-    // 'deudas'. Si el usuario la eliminó, el gasto queda sin categoría antes
-    // que perderse.
-    let categoria_id = repos::categorias::por_codigo(conn, CODIGO_DEUDAS)?.map(|c| c.id);
-
     let deuda = repos::deudas::obtener(conn, cuota.deuda_id)?;
-    let descripcion = format!("{} · cuota {}/{}", deuda.descripcion, cuota.numero, deuda.n_cuotas);
+
+    // Pagar una deuda propia es un gasto; cobrar una de un tercero es plata
+    // que entra. Cada uno cae en su categoría del sistema, ubicada por código
+    // para no depender del nombre. Si el usuario la eliminó, el movimiento
+    // queda sin categoría antes que perderse.
+    let (codigo, tipo) = match deuda.direccion {
+        DireccionDeuda::Propia => (CODIGO_DEUDAS, TipoMovimiento::Gasto),
+        DireccionDeuda::Tercero => (CODIGO_COBROS, TipoMovimiento::Ingreso),
+    };
+    let categoria_id = repos::categorias::por_codigo(conn, codigo)?.map(|c| c.id);
+
+    let descripcion = match (deuda.direccion, deuda.deudor.as_deref()) {
+        (DireccionDeuda::Tercero, Some(deudor)) => format!(
+            "{deudor} · {} · cuota {}/{}",
+            deuda.descripcion, cuota.numero, deuda.n_cuotas
+        ),
+        _ => format!("{} · cuota {}/{}", deuda.descripcion, cuota.numero, deuda.n_cuotas),
+    };
 
     repos::movimientos::insertar_pago_cuota(
         conn,
@@ -127,6 +141,7 @@ pub fn sincronizar_movimiento_de_cuota(
         fecha_pago,
         monto,
         &descripcion,
+        tipo,
     )?;
 
     Ok(())

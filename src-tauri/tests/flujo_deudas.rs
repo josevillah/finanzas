@@ -5,7 +5,7 @@ use finanzas_lib::db::{conexion, migraciones};
 use finanzas_lib::dominio::amortizacion;
 use finanzas_lib::dominio::fechas;
 use finanzas_lib::modelos::cuota::EstadoCuota;
-use finanzas_lib::modelos::deuda::{EstadoDeuda, NuevaDeuda, TipoDeuda};
+use finanzas_lib::modelos::deuda::{EstadoDeuda, NuevaDeuda, TipoDeuda, DireccionDeuda};
 use finanzas_lib::repos;
 use rusqlite::Connection;
 
@@ -25,6 +25,8 @@ fn deuda_ejemplo() -> NuevaDeuda {
         n_cuotas: 12,
         fecha_primera_cuota: "2026-09-05".into(),
         notas: None,
+        direccion: DireccionDeuda::Propia,
+        deudor: None,
     }
 }
 
@@ -78,7 +80,8 @@ fn ejecutar_migraciones_dos_veces_no_falla() {
     let categorias: i64 = conn
         .query_row("SELECT COUNT(*) FROM categorias", [], |f| f.get(0))
         .unwrap();
-    let esperado: i64 = 14;
+    // 14 de gasto más "Préstamos cobrados", que llegó con las deudas de terceros.
+    let esperado: i64 = 15;
     assert_eq!(categorias, esperado, "las semillas no deben duplicarse");
 }
 

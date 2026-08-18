@@ -58,6 +58,14 @@ export function formatearMesTitulo(anio: number, mes: number): string {
   return capitalizar(formatearMesLargo(anio, mes));
 }
 
+/**
+ * Índice absoluto del mes, para comparar y ordenar sin pelear con el borde de
+ * diciembre. Espejo de `fechas::mes_absoluto` en Rust.
+ */
+export function mesAbsoluto(anio: number, mes: number): number {
+  return anio * 12 + mes;
+}
+
 export function hoyISO(): string {
   const d = new Date();
   const mes = String(d.getMonth() + 1).padStart(2, "0");
