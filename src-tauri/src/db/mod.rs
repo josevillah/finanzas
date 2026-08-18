@@ -4,7 +4,7 @@ pub mod migraciones;
 use rusqlite::Connection;
 use tauri::AppHandle;
 
-use crate::error::{AppError, Resultado};
+use crate::error::Resultado;
 
 /// Abre la base y la deja lista para usar, en el orden que protege los datos:
 /// primero se comprueba que el binario entienda el esquema, después se guarda
@@ -18,12 +18,10 @@ pub fn iniciar(app: &AppHandle) -> Resultado<Connection> {
 
     migraciones::verificar_compatibilidad(&conn)?;
 
-    let ruta = conexion::ruta_db(app)?;
-    let directorio = ruta
-        .parent()
-        .ok_or_else(|| AppError::validacion("La ruta de datos no es válida."))?;
+    // Junto a las demás copias, no sueltas en el directorio de datos.
+    let carpeta = conexion::carpeta_respaldos(app)?;
 
-    if let Some(respaldo) = migraciones::respaldo_pre_migracion(&conn, directorio)? {
+    if let Some(respaldo) = migraciones::respaldo_pre_migracion(&conn, &carpeta)? {
         eprintln!(
             "[migraciones] copia previa a migrar en {}",
             respaldo.display()

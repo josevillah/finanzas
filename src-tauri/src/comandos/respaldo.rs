@@ -76,15 +76,9 @@ pub fn fijar_respaldo_automatico(estado: State<'_, EstadoApp>, activo: bool) -> 
 
 // ── respaldo automático local ────────────────────────────────────────────────
 
-/// Carpeta de copias automáticas, junto al archivo de datos.
+/// Carpeta de copias, la misma que usa el respaldo previo a migrar.
 pub fn carpeta_respaldos(app: &AppHandle) -> Resultado<PathBuf> {
-    let ruta = conexion::ruta_db(app)?;
-    let dir = ruta
-        .parent()
-        .ok_or_else(|| AppError::validacion("La ruta de datos no es válida."))?
-        .join("respaldos");
-
-    Ok(dir)
+    conexion::carpeta_respaldos(app)
 }
 
 /// Copia local silenciosa, una por día, conservando las últimas

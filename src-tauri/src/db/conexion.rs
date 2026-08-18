@@ -1,9 +1,9 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
 use tauri::{AppHandle, Manager};
 
-use crate::error::Resultado;
+use crate::error::{AppError, Resultado};
 
 /// Nombre del archivo de base de datos dentro del app data dir del sistema.
 /// En Windows queda en `%APPDATA%\cl.local.finanzas\finanzas.db`.
@@ -14,6 +14,27 @@ pub fn ruta_db(app: &AppHandle) -> Resultado<PathBuf> {
     let dir = app.path().app_data_dir()?;
     std::fs::create_dir_all(&dir)?;
     Ok(dir.join(NOMBRE_ARCHIVO))
+}
+
+/// Carpeta donde viven todas las copias: automáticas diarias, previas a un
+/// reinicio y previas a una migración.
+///
+/// Es una función aparte y pura para poder verificar en un test que el destino
+/// es la subcarpeta y no el directorio de datos. Tener dos destinos distintos
+/// para lo mismo fue justo el bug que hizo parecer que el respaldo previo a
+/// migrar no se ejecutaba.
+pub fn carpeta_respaldos_de(directorio_datos: &Path) -> PathBuf {
+    directorio_datos.join("respaldos")
+}
+
+/// Carpeta de respaldos de esta instalación.
+pub fn carpeta_respaldos(app: &AppHandle) -> Resultado<PathBuf> {
+    let ruta = ruta_db(app)?;
+    let datos = ruta
+        .parent()
+        .ok_or_else(|| AppError::validacion("La ruta de datos no es válida."))?;
+
+    Ok(carpeta_respaldos_de(datos))
 }
 
 /// Abre (creando si no existe) la base de datos local y aplica los PRAGMA.

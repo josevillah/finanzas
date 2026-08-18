@@ -4,6 +4,10 @@ use rusqlite::{Connection, DatabaseName};
 
 use crate::error::{AppError, Resultado};
 
+/// Prefijo de las copias previas a migrar. No entran en la rotación de las
+/// copias automáticas: son la red de una actualización, no una copia rutinaria.
+pub const PREFIJO_PRE_MIGRACION: &str = "finanzas-pre-";
+
 /// Migraciones versionadas. Para agregar una: crear el .sql en
 /// `src-tauri/migrations/` y sumar una entrada aquí con la versión siguiente.
 /// El orden importa y las versiones deben ser consecutivas desde 1.
@@ -80,6 +84,10 @@ pub fn verificar_compatibilidad(conn: &Connection) -> Resultado<()> {
 
 /// Copia la base antes de aplicar migraciones pendientes.
 ///
+/// El nombre lleva la versión **destino**, que es como uno la busca: "la copia
+/// previa a tener el esquema 7". Y un sello de tiempo, para que restaurar una
+/// base vieja y volver a migrar el mismo día no pise la copia anterior.
+///
 /// Devuelve la ruta del respaldo, o `None` si no había nada que resguardar:
 /// una base recién creada (versión 0) no tiene datos, y una ya al día no se
 /// va a tocar.
@@ -91,7 +99,11 @@ pub fn respaldo_pre_migracion(conn: &Connection, directorio: &Path) -> Resultado
     }
 
     std::fs::create_dir_all(directorio)?;
-    let ruta = directorio.join(format!("finanzas-pre-v{actual}.db"));
+    let ruta = directorio.join(format!(
+        "{PREFIJO_PRE_MIGRACION}v{}-{}.db",
+        version_objetivo(),
+        crate::dominio::fechas::sello_de_tiempo()
+    ));
 
     // La API de respaldo de SQLite y no una copia de archivo: con WAL activo
     // una copia plana puede dejar fuera las últimas transacciones.

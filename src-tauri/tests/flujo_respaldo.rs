@@ -365,11 +365,12 @@ fn se_respalda_antes_de_migrar_y_la_copia_conserva_el_esquema_viejo() {
         .unwrap()
         .expect("con migraciones pendientes debe respaldar");
 
-    assert_eq!(
-        copia.file_name().unwrap().to_string_lossy(),
-        "finanzas-pre-v2.db",
-        "el nombre debe decir de qué versión se viene"
+    let nombre = copia.file_name().unwrap().to_string_lossy().to_string();
+    assert!(
+        nombre.starts_with(&format!("finanzas-pre-v{}-", migraciones::version_objetivo())),
+        "el nombre lleva la versión destino, que es como uno la busca: {nombre}"
     );
+    assert!(nombre.ends_with(".db"));
     assert!(copia.is_file());
 
     // Migrar la base viva no debe tocar la copia.
@@ -480,4 +481,70 @@ fn una_tabla_vacia_exporta_solo_el_encabezado() {
     let (contenido, filas) = tabla_a_csv(&conn, "movimientos").unwrap();
     assert_eq!(filas, 0);
     assert_eq!(contenido.matches("\r\n").count(), 1);
+}
+
+// ── dónde y con qué nombre queda la copia previa a migrar ────────────────────
+
+#[test]
+fn la_copia_previa_a_migrar_va_junto_a_las_demas() {
+    use finanzas_lib::db::conexion::carpeta_respaldos_de;
+    use std::path::Path;
+
+    let datos = Path::new("/datos/cl.local.finanzas");
+
+    assert_eq!(
+        carpeta_respaldos_de(datos),
+        datos.join("respaldos"),
+        "dejarla en el directorio de datos hizo creer que el respaldo no corría"
+    );
+}
+
+#[test]
+fn la_copia_previa_a_migrar_no_la_barre_la_rotacion() {
+    use finanzas_lib::db::migraciones::PREFIJO_PRE_MIGRACION;
+    use finanzas_lib::dominio::respaldos;
+
+    let nombre = format!("{PREFIJO_PRE_MIGRACION}v7-2026-08-17-224312.db");
+
+    assert!(
+        !respaldos::es_automatico(&nombre),
+        "es la red de una actualización, no una copia rutinaria: {nombre}"
+    );
+
+    // Y si conviviera con cinco copias automáticas, sigue sin ser candidata.
+    let mut carpeta: Vec<String> = (11..=15)
+        .map(|d| respaldos::nombre_para(&format!("2026-08-{d}")))
+        .collect();
+    carpeta.push(nombre.clone());
+
+    let automaticos: Vec<String> = carpeta
+        .iter()
+        .filter(|n| respaldos::es_automatico(n))
+        .cloned()
+        .collect();
+
+    assert_eq!(automaticos.len(), 5, "la copia previa no entra al conteo");
+    assert!(!respaldos::a_eliminar(&automaticos, respaldos::COPIAS_A_CONSERVAR).contains(&nombre));
+}
+
+#[test]
+fn dos_migraciones_el_mismo_dia_no_se_pisan() {
+    let dir = carpeta("pre-migracion-dos-veces");
+
+    let primera = base_en_v2(&dir.join("una.db"));
+    let copia_a = migraciones::respaldo_pre_migracion(&primera, &dir)
+        .unwrap()
+        .unwrap();
+
+    // Restaurar una base vieja y volver a migrar el mismo día es raro pero
+    // posible; el sello de tiempo evita perder la primera copia.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+
+    let segunda = base_en_v2(&dir.join("otra.db"));
+    let copia_b = migraciones::respaldo_pre_migracion(&segunda, &dir)
+        .unwrap()
+        .unwrap();
+
+    assert_ne!(copia_a, copia_b);
+    assert!(copia_a.is_file() && copia_b.is_file());
 }
