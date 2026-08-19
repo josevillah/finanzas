@@ -16,7 +16,7 @@ import { Moneda } from "@/components/Moneda";
 import { Cargando, ErrorCarga, Vacio } from "@/components/ui/Estados";
 import { SelectorMes, useMes } from "@/features/mes/MesContexto";
 import { cn } from "@/lib/cn";
-import { MESES_CORTOS } from "@/lib/fechas";
+import { describirRangoDeMeses, MESES_CORTOS } from "@/lib/fechas";
 import { formatearCLP, formatearCompacto, formatearPorcentaje } from "@/lib/moneda";
 import type { GastoPorCategoria, MesHormiga, SerieCategoria } from "@/types/dominio";
 
@@ -87,6 +87,8 @@ export function Reportes() {
             series={evolucion.data.series}
             meses={evolucion.data.meses}
             totalVentana={evolucion.data.total_ventana}
+            promedioMensual={evolucion.data.promedio_mensual}
+            mesesConGasto={evolucion.data.meses_con_gasto}
           />
         )}
       </section>
@@ -108,6 +110,7 @@ export function Reportes() {
             meses={hormiga.data.meses}
             mesActual={hormiga.data.mes_actual}
             promedioPrevios={hormiga.data.promedio_previos}
+            mesesPreviosConGasto={hormiga.data.meses_previos_con_gasto}
             variacionMesAnterior={hormiga.data.variacion_mes_anterior}
             variacionPromedio={hormiga.data.variacion_promedio}
             porCategoria={hormiga.data.por_categoria}
@@ -125,10 +128,14 @@ function EvolucionPanel({
   series,
   meses,
   totalVentana,
+  promedioMensual,
+  mesesConGasto,
 }: {
   series: SerieCategoria[];
   meses: string[];
   totalVentana: number;
+  promedioMensual: number;
+  mesesConGasto: number;
 }) {
   const conAnio = new Set(meses.map((m) => m.slice(0, 4))).size > 1;
 
@@ -143,7 +150,9 @@ function EvolucionPanel({
     [meses, series, conAnio],
   );
 
-  const promedioMensual = Math.round(totalVentana / Math.max(meses.length, 1));
+  // El rango que cubren las tres tarjetas. Sin esto, "Total del período" no
+  // dice de qué período habla y hay que deducirlo del botón de la ventana.
+  const rango = describirRangoDeMeses(meses[0] ?? "", meses[meses.length - 1] ?? "");
 
   return (
     <>
@@ -153,18 +162,24 @@ function EvolucionPanel({
           <p className="mt-1 text-xl font-semibold">
             <Moneda monto={totalVentana} />
           </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{rango}</p>
         </div>
         <div className="tarjeta">
           <p className="etiqueta">Promedio mensual</p>
           <p className="mt-1 text-xl font-semibold">
             <Moneda monto={promedioMensual} />
           </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {/* El denominador a la vista: si la ventana pisa meses sin gasto,
+                el promedio no los cuenta y acá se ve por qué. */}
+            {rango} · {mesesConGasto} de {meses.length} meses con gasto
+          </p>
         </div>
         <div className="tarjeta">
           <p className="etiqueta">Categoría más pesada</p>
           <p className="mt-1 truncate text-xl font-semibold">{series[0]?.categoria_nombre ?? "—"}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            <Moneda monto={series[0]?.total ?? 0} /> en total
+            <Moneda monto={series[0]?.total ?? 0} /> en total · {rango}
           </p>
         </div>
       </div>
@@ -223,9 +238,16 @@ function EvolucionPanel({
                 />
                 <span className="truncate">{s.categoria_nombre}</span>
               </span>
-              <span className="flex shrink-0 gap-5">
+              <span className="flex shrink-0 items-baseline gap-5">
                 <span className="text-slate-500 dark:text-slate-400">
-                  <Moneda monto={s.promedio} atenuado /> /mes
+                  {/* Con un solo mes no hay promedio que mostrar: es el monto y
+                      punto. El "/mes" sugeriría una recurrencia que el "1 de 6"
+                      de al lado desmiente en la misma línea. */}
+                  <Moneda monto={s.promedio} atenuado />
+                  {s.meses_con_gasto > 1 ? " /mes" : null}
+                  <span className="ml-2 text-xs text-slate-400">
+                    {s.meses_con_gasto} de {meses.length}
+                  </span>
                 </span>
                 <span className="w-28 text-right font-medium">
                   <Moneda monto={s.total} />
@@ -284,6 +306,7 @@ function HormigaPanel({
   meses,
   mesActual,
   promedioPrevios,
+  mesesPreviosConGasto,
   variacionMesAnterior,
   variacionPromedio,
   porCategoria,
@@ -292,6 +315,7 @@ function HormigaPanel({
   meses: MesHormiga[];
   mesActual: MesHormiga | null;
   promedioPrevios: number;
+  mesesPreviosConGasto: number;
   variacionMesAnterior: number | null;
   variacionPromedio: number | null;
   porCategoria: GastoPorCategoria[];
@@ -328,7 +352,15 @@ function HormigaPanel({
           variacion={variacionPromedio}
           leyenda="bajo el promedio"
           leyendaSube="sobre el promedio"
-          nota={`Promedio: ${formatearCLP(promedioPrevios)}`}
+          // Contra qué se compara, explícito: el promedio sale de los meses en
+          // que hubo hormigas, no de todos los de la ventana.
+          nota={
+            mesesPreviosConGasto > 0
+              ? `Promedio: ${formatearCLP(promedioPrevios)} · ${mesesPreviosConGasto} ${
+                  mesesPreviosConGasto === 1 ? "mes previo" : "meses previos"
+                } con gasto`
+              : "Sin meses previos con hormigas"
+          }
         />
 
         <div className="tarjeta">

@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use rusqlite::Connection;
 use tauri::State;
 
 use crate::dominio::dinero::{self, Monto};
@@ -25,14 +26,22 @@ pub fn evolucion_gastos(
     mes: u32,
     meses: Option<u32>,
 ) -> Resultado<EvolucionGastos> {
+    let guard = estado.conn();
+    armar_evolucion(&guard, anio, mes, meses)
+}
+
+/// Núcleo de la evolución. Recibe `&Connection` para poder cubrirlo con tests
+/// sin levantar Tauri, como el resto de los comandos.
+pub fn armar_evolucion(
+    conn: &Connection,
+    anio: i32,
+    mes: u32,
+    meses: Option<u32>,
+) -> Resultado<EvolucionGastos> {
     let ventana = ventana_meses(anio, mes, meses)?;
 
-    let guard = estado.conn();
-    let filas = repos::movimientos::evolucion_por_categoria(
-        &guard,
-        ventana.desde_abs,
-        ventana.hasta_abs,
-    )?;
+    let filas =
+        repos::movimientos::evolucion_por_categoria(conn, ventana.desde_abs, ventana.hasta_abs)?;
 
     // (categoria_id, nombre, color) -> mes absoluto -> total
     let mut por_categoria: BTreeMap<(Option<i64>, String, Option<String>), BTreeMap<i64, Monto>> =
@@ -50,13 +59,15 @@ pub fn evolucion_gastos(
         .map(|((categoria_id, categoria_nombre, color), totales)| {
             let puntos = ventana.puntos(&totales);
             let total: Monto = puntos.iter().map(|p| p.total).sum();
+            let meses_con_gasto = contar_meses_con_gasto(&puntos);
 
             SerieCategoria {
                 categoria_id,
                 categoria_nombre,
                 color,
                 total,
-                promedio: total / ventana.claves.len() as i64,
+                promedio: dinero::promedio_mensual(total, meses_con_gasto as i64),
+                meses_con_gasto,
                 puntos,
             }
         })
@@ -83,12 +94,14 @@ pub fn evolucion_gastos(
             .collect();
 
         let total: Monto = puntos.iter().map(|p| p.total).sum();
+        let meses_con_gasto = contar_meses_con_gasto(&puntos);
         series.push(SerieCategoria {
             categoria_id: None,
             categoria_nombre: format!("Otras ({})", resto.len()),
             color: Some("#94a3b8".into()),
             total,
-            promedio: total / ventana.claves.len() as i64,
+            promedio: dinero::promedio_mensual(total, meses_con_gasto as i64),
+            meses_con_gasto,
             puntos,
         });
     }
@@ -103,12 +116,27 @@ pub fn evolucion_gastos(
         })
         .collect();
 
+    let total_ventana: Monto = total_por_mes.iter().map(|p| p.total).sum();
+    let meses_con_gasto = contar_meses_con_gasto(&total_por_mes);
+
     Ok(EvolucionGastos {
-        total_ventana: total_por_mes.iter().map(|p| p.total).sum(),
+        total_ventana,
+        meses_con_gasto,
+        promedio_mensual: dinero::promedio_mensual(total_ventana, meses_con_gasto as i64),
         meses: ventana.claves.clone(),
         series,
         total_por_mes,
     })
+}
+
+/// Cuántos meses de la serie tuvieron gasto.
+///
+/// Es el denominador de todos los promedios del reporte. Un mes en cero puede
+/// serlo porque no se gastó en esa categoría o porque la ventana llega más
+/// atrás que el primer registro de la aplicación; en los dos casos meterlo en
+/// el divisor inventa una regularidad que no existe.
+fn contar_meses_con_gasto(puntos: &[PuntoMes]) -> i32 {
+    puntos.iter().filter(|p| p.total > 0).count() as i32
 }
 
 /// Gasto hormiga mes a mes, con la comparación contra los meses previos.
@@ -119,11 +147,21 @@ pub fn reporte_hormiga(
     mes: u32,
     meses: Option<u32>,
 ) -> Resultado<ReporteHormiga> {
+    let guard = estado.conn();
+    armar_hormiga(&guard, anio, mes, meses)
+}
+
+/// Núcleo del reporte de hormigas, sobre `&Connection`.
+pub fn armar_hormiga(
+    conn: &Connection,
+    anio: i32,
+    mes: u32,
+    meses: Option<u32>,
+) -> Resultado<ReporteHormiga> {
     let ventana = ventana_meses(anio, mes, meses)?;
 
-    let guard = estado.conn();
     let filas =
-        repos::movimientos::hormiga_por_periodo(&guard, ventana.desde_abs, ventana.hasta_abs)?;
+        repos::movimientos::hormiga_por_periodo(conn, ventana.desde_abs, ventana.hasta_abs)?;
 
     let por_mes: BTreeMap<i64, (Monto, i32, Monto)> = filas
         .into_iter()
@@ -161,11 +199,14 @@ pub fn reporte_hormiga(
     let mes_actual = meses_reporte.last().cloned();
     let previos = &meses_reporte[..meses_reporte.len().saturating_sub(1)];
 
-    let promedio_previos = if previos.is_empty() {
-        0
-    } else {
-        previos.iter().map(|m| m.total).sum::<Monto>() / previos.len() as i64
-    };
+    // Mismo criterio que la evolución: promedian solo los meses en que hubo
+    // hormigas. Con los vacíos adentro, el promedio bajaba y cualquier mes
+    // normal aparecía como un desvío enorme contra una referencia inventada.
+    let meses_previos_con_gasto = previos.iter().filter(|m| m.total > 0).count() as i32;
+    let promedio_previos = dinero::promedio_mensual(
+        previos.iter().map(|m| m.total).sum(),
+        meses_previos_con_gasto as i64,
+    );
 
     let variacion_mes_anterior = match (mes_actual.as_ref(), previos.last()) {
         (Some(actual), Some(anterior)) => dinero::variacion_porcentual(anterior.total, actual.total),
@@ -176,9 +217,9 @@ pub fn reporte_hormiga(
         .as_ref()
         .and_then(|actual| dinero::variacion_porcentual(promedio_previos, actual.total));
 
-    let periodo = repos::periodos::obtener(&guard, anio, mes)?;
+    let periodo = repos::periodos::obtener(conn, anio, mes)?;
     let por_categoria = match periodo {
-        Some(p) => repos::movimientos::hormiga_por_categoria(&guard, p.id)?,
+        Some(p) => repos::movimientos::hormiga_por_categoria(conn, p.id)?,
         None => Vec::new(),
     };
 
@@ -186,6 +227,7 @@ pub fn reporte_hormiga(
         total_ventana: meses_reporte.iter().map(|m| m.total).sum(),
         mes_actual,
         promedio_previos,
+        meses_previos_con_gasto,
         variacion_mes_anterior,
         variacion_promedio,
         por_categoria,

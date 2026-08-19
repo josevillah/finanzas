@@ -60,7 +60,7 @@ src-tauri/
   src/modelos/             structs de tabla + DTOs (serde, snake_case)
   src/repos/               TODO el SQL, nada de SQL fuera de acá
   src/comandos/            73 comandos de Tauri, capa delgada
-  tests/                   14 archivos de integración contra SQLite en memoria
+  tests/                   15 archivos de integración contra SQLite en memoria
 ```
 
 **Capas:** `comandos` valida entrada y abre transacciones → `repos` ejecuta SQL →
@@ -255,6 +255,19 @@ castigaría a quien lleva poco tiempo usando la app.
 varias metas los números no se suman, y la pantalla lo dice: el total del
 conjunto se muestra aparte.
 
+**Los promedios de Reportes dividen por los meses con gasto, no por la
+ventana.** Dividir $82.696 gastados una sola vez por los 6 meses del botón daba
+"$13.782 al mes", que se lee como un gasto recurrente que no existe, y castigaba
+a quien lleva menos tiempo usando la app que el largo de la ventana. Rige para
+el promedio de cada categoría, el promedio general y el promedio previo de
+hormigas —que además alimenta la variación del mes, y con meses vacíos adentro
+hacía ver alarmante cualquier mes normal—. El costo: los `/mes` por categoría
+ya **no suman** el promedio general. Por eso al lado de cada uno va "1 de 6": sin
+ese conteo el número vuelve a leerse como recurrente y encima no cuadra con el
+total. El argumento contrario es real —para un gasto anual, dividir por la
+ventana da el monto a apartar cada mes— y el conteo es lo que lo deja explícito
+en vez de resolverlo a favor de una sola lectura.
+
 **`movimientos_ahorro` es un registro, no la fuente de verdad del saldo.**
 `cuentas.saldo` sigue siendo el valor guardado y nadie lo recalcula sumando el
 historial: si divergieran, manda el saldo. Los apartados anteriores a la 0013
@@ -289,8 +302,8 @@ migrar: restaurar desde la app vuelve a migrar y no sirve.
 
 ## Verificación
 
-- `cargo test` → **305 tests, todos verdes**
-  (unitarios en `dominio` + 14 archivos de integración contra SQLite en memoria)
+- `cargo test` → **319 tests, todos verdes**
+  (unitarios en `dominio` + 15 archivos de integración contra SQLite en memoria)
 - `npm run typecheck` → limpio en `src/` y `vite.config.ts`
 - `npm run build` → genera `.msi` y `.exe` sin warnings del código propio
 

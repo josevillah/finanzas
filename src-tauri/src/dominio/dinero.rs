@@ -31,6 +31,22 @@ pub fn redondear_a_peso(valor: f64) -> Monto {
     valor.round() as Monto
 }
 
+/// Promedio entero de `total` repartido en `meses`.
+///
+/// `meses` es la cantidad de meses **con gasto**, no el largo de la ventana:
+/// dividir por meses vacíos convierte un gasto de una vez en uno recurrente
+/// —"$82.696 en agosto" se ve como "$13.782 al mes"— y castiga a quien lleva
+/// menos tiempo que la ventana usando la aplicación.
+///
+/// Con 0 meses devuelve 0. No hay promedio que calcular, y es la única
+/// respuesta que no inventa un número ni revienta.
+pub fn promedio_mensual(total: Monto, meses: i64) -> Monto {
+    if meses <= 0 {
+        return 0;
+    }
+    total / meses
+}
+
 /// Variación porcentual de `antes` a `ahora`. Devuelve `None` cuando no hay
 /// base positiva contra la cual comparar: sin eso el porcentaje no significa
 /// nada (y dividir por cero da infinito).
@@ -52,6 +68,19 @@ mod tests {
         assert_eq!(variacion_porcentual(100_000, 100_000), Some(0.0));
         // Sin base previa no hay porcentaje que reportar.
         assert_eq!(variacion_porcentual(0, 50_000), None);
+    }
+
+    #[test]
+    fn el_promedio_divide_por_los_meses_con_gasto() {
+        // El caso que motivó la función: todo el gasto en un solo mes.
+        assert_eq!(promedio_mensual(82_696, 1), 82_696);
+        assert_eq!(promedio_mensual(82_696, 6), 13_782, "trunca, no redondea");
+    }
+
+    #[test]
+    fn sin_meses_no_hay_promedio() {
+        assert_eq!(promedio_mensual(500_000, 0), 0);
+        assert_eq!(promedio_mensual(500_000, -3), 0);
     }
 
     #[test]

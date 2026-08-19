@@ -97,3 +97,24 @@ export function describirMeses(meses: number | null): string {
 
   return partes.join(" y ") || "este mes";
 }
+
+/**
+ * Rango legible entre dos claves 'YYYY-MM', para decir qué período cubre un
+ * reporte: "marzo a agosto de 2026", o "septiembre de 2025 a agosto de 2026"
+ * cuando la ventana cruza el año.
+ *
+ * Un solo mes se dice entero: "agosto de 2026".
+ */
+export function describirRangoDeMeses(desde: string, hasta: string): string {
+  const a = /^(\d{4})-(\d{2})$/.exec(desde ?? "");
+  const b = /^(\d{4})-(\d{2})$/.exec(hasta ?? "");
+  if (!a || !b) return "";
+
+  const [anioA, mesA] = [Number(a[1]), Number(a[2])];
+  const [anioB, mesB] = [Number(b[1]), Number(b[2])];
+
+  if (anioA === anioB && mesA === mesB) return formatearMesLargo(anioB, mesB);
+  if (anioA === anioB) return `${MESES[mesA - 1]} a ${formatearMesLargo(anioB, mesB)}`;
+
+  return `${formatearMesLargo(anioA, mesA)} a ${formatearMesLargo(anioB, mesB)}`;
+}

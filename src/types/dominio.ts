@@ -334,7 +334,10 @@ export interface SerieCategoria {
   categoria_nombre: string;
   color: string | null;
   total: number;
+  /** `total` dividido por `meses_con_gasto`, no por el largo de la ventana. */
   promedio: number;
+  /** En cuántos meses de la ventana esta categoría tuvo gasto. */
+  meses_con_gasto: number;
   puntos: PuntoMes[];
 }
 
@@ -343,6 +346,10 @@ export interface EvolucionGastos {
   series: SerieCategoria[];
   total_por_mes: PuntoMes[];
   total_ventana: number;
+  /** Meses de la ventana con algún gasto. Puede ser menor que `meses.length`. */
+  meses_con_gasto: number;
+  /** `total_ventana / meses_con_gasto`, calculado en Rust. */
+  promedio_mensual: number;
 }
 
 export interface MesHormiga {
@@ -358,7 +365,9 @@ export interface MesHormiga {
 export interface ReporteHormiga {
   meses: MesHormiga[];
   mes_actual: MesHormiga | null;
+  /** Promedio de los meses previos **con** hormigas; los vacíos no cuentan. */
   promedio_previos: number;
+  meses_previos_con_gasto: number;
   variacion_mes_anterior: number | null;
   variacion_promedio: number | null;
   por_categoria: GastoPorCategoria[];
