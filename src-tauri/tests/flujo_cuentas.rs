@@ -9,7 +9,8 @@
 //! gastar" sin cambiar el patrimonio.
 
 use finanzas_lib::comandos::cuentas::{
-    actualizar, armar_resumen, crear, desglose, eliminar, fijar_inicial, mover, Direccion,
+    actualizar, armar_resumen, crear, desglose, desglose_hasta, eliminar, fijar_inicial, mover,
+    Direccion,
 };
 use finanzas_lib::db::{conexion, migraciones};
 use finanzas_lib::modelos::cuenta::NuevaCuenta;
@@ -402,6 +403,108 @@ fn los_gastos_estimados_cuentan_y_se_informan_aparte() {
         "y además se informa aparte, para poder explicar el número"
     );
     assert_eq!(disponible(&conn), 435_000);
+}
+
+// ── el corte en el mes en curso ──────────────────────────────────────────────
+//
+// Lo que cae en un mes que todavía no llegó es una proyección, no plata que
+// salió. `desglose_hasta` fija el mes de corte para no depender del día en que
+// corran estos tests.
+
+#[test]
+fn un_gasto_de_un_mes_futuro_no_baja_el_disponible() {
+    let conn = base();
+    fijar_inicial(&conn, 500_000).unwrap();
+    movimiento(&conn, 2026, 3, TipoMovimiento::Gasto, 100_000);
+    movimiento(&conn, 2026, 4, TipoMovimiento::Gasto, 80_000);
+
+    let d = desglose_hasta(&conn, 2026, 3).unwrap();
+
+    assert_eq!(d.gastos, 100_000, "el de abril todavía no pasó");
+    assert_eq!(d.disponible(), 400_000);
+}
+
+#[test]
+fn un_ingreso_de_un_mes_futuro_no_sube_el_disponible() {
+    let conn = base();
+    movimiento(&conn, 2026, 4, TipoMovimiento::Ingreso, 250_000);
+
+    let d = desglose_hasta(&conn, 2026, 3).unwrap();
+
+    assert_eq!(d.ingresos_registrados, 0);
+    assert_eq!(
+        d.disponible(),
+        0,
+        "el corte tiene que ser simétrico: si el gasto futuro no resta, el ingreso futuro no suma"
+    );
+}
+
+#[test]
+fn el_sueldo_declarado_en_un_mes_futuro_no_cuenta() {
+    let conn = base();
+    sueldo(&conn, 2026, 3, 900_000);
+    sueldo(&conn, 2026, 4, 900_000);
+
+    let d = desglose_hasta(&conn, 2026, 3).unwrap();
+
+    assert_eq!(d.ingresos_declarados, 900_000, "el de abril no entró todavía");
+}
+
+#[test]
+fn el_mes_en_curso_cuenta_completo() {
+    let conn = base();
+    fijar_inicial(&conn, 500_000).unwrap();
+    sueldo(&conn, 2026, 3, 900_000);
+    gasto(&conn, 200_000);
+
+    // El corte es hasta el mes en curso inclusive: marzo entero cuenta, aunque
+    // el mes no haya terminado.
+    let d = desglose_hasta(&conn, 2026, 3).unwrap();
+
+    assert_eq!(d.ingresos_declarados, 900_000);
+    assert_eq!(d.gastos, 200_000);
+    assert_eq!(d.disponible(), 1_200_000);
+}
+
+#[test]
+fn el_estimado_de_un_mes_futuro_queda_fuera_del_disponible() {
+    // El caso que originó todo esto: el estimado de un servicio materializado
+    // en un mes que no llegó descontaba plata que nunca salió.
+    let conn = base();
+    fijar_inicial(&conn, 500_000).unwrap();
+
+    let servicio = repos::servicios::insertar(
+        &conn,
+        &NuevoServicio {
+            nombre: "Gastos Comunes".into(),
+            categoria_id: None,
+            monto_estimado: 56_816,
+            dia_vencimiento: None,
+            tipo: TipoServicio::Basico,
+            activo: true,
+            fecha_alta: None,
+        },
+        "2026-03-01",
+    )
+    .unwrap();
+
+    let futuro = repos::periodos::obtener_o_crear(&conn, 2026, 4).unwrap();
+    repos::movimientos::insertar_estimado_servicio(
+        &conn,
+        futuro.id,
+        servicio,
+        None,
+        "2026-04-01",
+        56_816,
+        "Gastos Comunes",
+    )
+    .unwrap();
+
+    let d = desglose_hasta(&conn, 2026, 3).unwrap();
+
+    assert_eq!(d.gastos, 0);
+    assert_eq!(d.gastos_estimados, 0);
+    assert_eq!(d.disponible(), 500_000);
 }
 
 // ── esquema ──────────────────────────────────────────────────────────────────

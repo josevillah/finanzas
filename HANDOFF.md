@@ -52,12 +52,12 @@ src/                       frontend, solo presentación
     respaldo/              Fase 4
 
 src-tauri/
-  migrations/*.sql         5 migraciones, embebidas con include_str!
+  migrations/*.sql         10 migraciones, embebidas con include_str!
   src/dominio/             lógica pura: dinero, fechas, amortización, csv
   src/modelos/             structs de tabla + DTOs (serde, snake_case)
   src/repos/               TODO el SQL, nada de SQL fuera de acá
   src/comandos/            45 comandos de Tauri, capa delgada
-  tests/                   4 archivos de integración contra SQLite en memoria
+  tests/                   11 archivos de integración contra SQLite en memoria
 ```
 
 **Capas:** `comandos` valida entrada y abre transacciones → `repos` ejecuta SQL →

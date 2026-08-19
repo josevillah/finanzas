@@ -8,7 +8,9 @@ import type { RangoMeses } from "@/types/dominio";
  * Elige mes y año desde una grilla, en vez de ir de a un click con las flechas.
  *
  * El rango lo decide el backend: desde el mes más antiguo con datos (o 24 meses
- * atrás) hasta el mes actual. Fuera de ahí solo se crearían períodos vacíos.
+ * atrás) hasta el mes actual —o más adelante, si quedó algún movimiento en un
+ * mes futuro que haya que poder borrar—. Fuera de ahí solo se crearían
+ * períodos vacíos.
  */
 export function SelectorMesAnio({
   anio,

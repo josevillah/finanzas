@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { claves, useInvalidar, type EventoDominio } from "@/lib/consultas";
+import { mesAbsoluto, mesActual } from "@/lib/fechas";
 import * as ipc from "@/lib/ipc";
 import type { NuevaCategoria, NuevoServicio } from "@/types/dominio";
 
@@ -128,11 +129,17 @@ export function useActivarServicioEnMes() {
  * Materializa los gastos de los servicios del mes que se está viendo, una vez
  * por mes y por sesión. El comando es idempotente y no toca meses anteriores
  * al alta de cada servicio, así que abrir un mes viejo no lo contamina.
+ *
+ * Un mes futuro no genera nada: sería una proyección descontando disponible.
+ * El backend es el que manda —también corta ahí—; esto solo evita el viaje.
  */
 export function useGenerarAlEntrarAlMes(anio: number, mes: number) {
   const generar = useGenerarGastosServicios();
 
   useEffect(() => {
+    const hoy = mesActual();
+    if (mesAbsoluto(anio, mes) > mesAbsoluto(hoy.anio, hoy.mes)) return;
+
     const clave = `${anio}-${mes}`;
     if (mesesGenerados.has(clave)) return;
 

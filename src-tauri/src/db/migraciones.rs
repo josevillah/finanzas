@@ -57,6 +57,11 @@ const MIGRACIONES: &[(i32, &str, &str)] = &[
         "0009_saldo_calculado",
         include_str!("../../migrations/0009_saldo_calculado.sql"),
     ),
+    (
+        10,
+        "0010_limpieza_estimados_futuros",
+        include_str!("../../migrations/0010_limpieza_estimados_futuros.sql"),
+    ),
 ];
 
 /// Versión de esquema esperada por este binario.
@@ -126,10 +131,20 @@ pub fn respaldo_pre_migracion(conn: &Connection, directorio: &Path) -> Resultado
 /// transacción: si falla, el archivo queda en la versión anterior intacto.
 /// Es idempotente, así que se llama en cada arranque de la app.
 pub fn ejecutar(conn: &mut Connection) -> Resultado<()> {
+    ejecutar_hasta(conn, version_objetivo())
+}
+
+/// Igual que [`ejecutar`], pero frenando en la versión indicada.
+///
+/// Existe para los tests: poder dejar una base en la versión anterior, poblarla
+/// con los datos que tendría en la vida real y recién entonces aplicar la
+/// migración que se quiere observar. En producción siempre se llama a
+/// [`ejecutar`], que va hasta el final.
+pub fn ejecutar_hasta(conn: &mut Connection, objetivo: i32) -> Resultado<()> {
     let actual = version_actual(conn)?;
 
     for (version, nombre, sql) in MIGRACIONES {
-        if *version <= actual {
+        if *version <= actual || *version > objetivo {
             continue;
         }
 

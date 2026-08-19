@@ -20,9 +20,11 @@ pub fn obtener_periodo(estado: State<'_, EstadoApp>, anio: i32, mes: u32) -> Res
 
 /// Hasta dónde puede navegar el usuario y qué meses tienen contenido.
 ///
-/// El límite superior es el mes actual: no tiene sentido abrir meses futuros.
-/// El inferior son 24 meses hacia atrás, o más si hay datos más antiguos, para
-/// que nadie quede encerrado sin poder cargar un mes que le faltaba.
+/// El límite superior es el mes actual —no tiene sentido abrir meses
+/// futuros—, salvo que más adelante haya movimientos: esos se pueden alcanzar
+/// para poder borrarlos. El inferior son 24 meses hacia atrás, o más si hay
+/// datos más antiguos, para que nadie quede encerrado sin poder cargar un mes
+/// que le faltaba.
 #[tauri::command]
 pub fn meses_disponibles(estado: State<'_, EstadoApp>) -> Resultado<RangoMeses> {
     let guard = estado.conn();
@@ -83,9 +85,19 @@ pub fn armar_rango(
     let meses: Vec<MesConDatos> = por_mes
         .into_iter()
         .filter(|(abs, m)| {
-            // Los meses futuros quedan fuera aunque tengan cuotas: el selector
-            // solo llega hasta hoy.
-            *abs <= hasta_abs && tiene_contenido(m)
+            if *abs <= hasta_abs {
+                return tiene_contenido(m);
+            }
+
+            // Un mes futuro entra solo si tiene movimientos, y entra
+            // justamente para poder sacarlos: un movimiento en un mes que el
+            // selector no alcanza no se puede ver ni borrar desde ninguna
+            // pantalla, y hasta que se borre sigue ahí.
+            //
+            // Cuotas y presupuestos programados no cuentan: son compromisos
+            // futuros normales, y con ellos el selector se estiraría años
+            // hacia adelante por cada deuda larga.
+            m.n_movimientos > 0
         })
         .map(|(_, m)| m)
         .collect();
@@ -99,11 +111,19 @@ pub fn armar_rango(
     let desde_abs = mas_antiguo.min(hasta_abs - 23).min(hasta_abs);
     let (desde_anio, desde_mes) = fechas::desde_mes_absoluto(desde_abs);
 
+    // Hacia adelante el tope es el mes actual, salvo que haya que llegar más
+    // lejos a limpiar algo.
+    let mas_nuevo = meses
+        .last()
+        .map(|m| fechas::mes_absoluto(m.anio, m.mes))
+        .unwrap_or(hasta_abs);
+    let (hasta_anio, hasta_mes) = fechas::desde_mes_absoluto(mas_nuevo.max(hasta_abs));
+
     Ok(RangoMeses {
         desde_anio,
         desde_mes,
-        hasta_anio: anio_actual,
-        hasta_mes: mes_actual,
+        hasta_anio,
+        hasta_mes,
         meses,
     })
 }
@@ -285,5 +305,43 @@ mod tests {
     fn el_rango_cruza_el_cambio_de_ano() {
         let rango = armar_rango(&[], &[], 2026, 1).unwrap();
         assert_eq!((rango.desde_anio, rango.desde_mes), (2024, 2));
+    }
+
+    #[test]
+    fn un_mes_futuro_con_movimientos_entra_para_poder_limpiarlo() {
+        // El caso real: un estimado que quedó en un mes que no llegó. Mientras
+        // el selector no alcanzaba ese mes, no había forma de borrarlo.
+        let rango = armar_rango(&[periodo(2026, 9, 1, 0, false)], &[], 2026, 8).unwrap();
+
+        assert_eq!(claves(&rango), vec!["2026-09"]);
+        assert_eq!(
+            (rango.hasta_anio, rango.hasta_mes),
+            (2026, 9),
+            "de nada sirve listarlo si el selector no puede llegar"
+        );
+    }
+
+    #[test]
+    fn un_mes_futuro_sin_movimientos_no_estira_el_rango() {
+        // Un presupuesto o un sueldo cargados a futuro no son algo que haya que
+        // ir a borrar: no hay movimiento que sacar.
+        let rango = armar_rango(&[periodo(2026, 9, 0, 3, true)], &[], 2026, 8).unwrap();
+
+        assert!(claves(&rango).is_empty());
+        assert_eq!((rango.hasta_anio, rango.hasta_mes), (2026, 8));
+    }
+
+    #[test]
+    fn el_tope_llega_hasta_el_mes_futuro_mas_lejano_con_movimientos() {
+        let rango = armar_rango(
+            &[periodo(2026, 9, 1, 0, false), periodo(2026, 12, 2, 0, false)],
+            &[],
+            2026,
+            8,
+        )
+        .unwrap();
+
+        assert_eq!(claves(&rango), vec!["2026-09", "2026-12"]);
+        assert_eq!((rango.hasta_anio, rango.hasta_mes), (2026, 12));
     }
 }

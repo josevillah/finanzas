@@ -3,7 +3,8 @@
 //! La generación automática nunca retrocede, y eso es deliberado. Esta es la
 //! salida manual para "ya lo pagaba, pero lo di de alta recién ahora".
 
-use finanzas_lib::comandos::servicios::activar_en_mes;
+use chrono::NaiveDate;
+use finanzas_lib::comandos::servicios::{activar_en_mes, generar_en_mes};
 use finanzas_lib::db::{conexion, migraciones};
 use finanzas_lib::modelos::movimiento::FiltroMovimientos;
 use finanzas_lib::modelos::servicio::{NuevoServicio, TipoServicio};
@@ -209,4 +210,49 @@ fn tras_activarlo_el_servicio_cuenta_en_los_totales_del_mes() {
     assert_eq!(reales[0].0, servicio);
     assert_eq!(reales[0].1, 8_500);
     assert_eq!(reales[0].3, 0, "ninguno queda pendiente de confirmar");
+}
+
+// ── la generación automática no se adelanta ──────────────────────────────────
+
+/// El día que se le pasa a `generar_en_mes` fija el mes en curso, para que
+/// estos tests no dependan de la fecha en que se ejecutan.
+fn dia(anio: i32, mes: u32, d: u32) -> NaiveDate {
+    NaiveDate::from_ymd_opt(anio, mes, d).unwrap()
+}
+
+#[test]
+fn generar_en_el_mes_en_curso_materializa_los_estimados() {
+    let conn = base();
+    servicio_de_agosto(&conn, Some(8));
+
+    let creados = generar_en_mes(&conn, 2026, 8, dia(2026, 8, 17)).unwrap();
+
+    assert_eq!(creados, 1);
+    assert_eq!(movimientos_del_mes(&conn, 2026, 8).len(), 1);
+}
+
+#[test]
+fn generar_en_un_mes_futuro_no_crea_nada() {
+    // Es el bug que dejó un estimado descontando plata en un mes que no había
+    // llegado: alcanzaba con que una pantalla se abriera en ese mes.
+    let conn = base();
+    servicio_de_agosto(&conn, Some(8));
+
+    let creados = generar_en_mes(&conn, 2026, 9, dia(2026, 8, 17)).unwrap();
+
+    assert_eq!(creados, 0);
+    assert!(movimientos_del_mes(&conn, 2026, 9).is_empty());
+}
+
+#[test]
+fn generar_en_un_mes_futuro_ni_siquiera_crea_el_periodo() {
+    let conn = base();
+    servicio_de_agosto(&conn, Some(8));
+
+    generar_en_mes(&conn, 2026, 9, dia(2026, 8, 17)).unwrap();
+
+    assert!(
+        repos::periodos::obtener(&conn, 2026, 9).unwrap().is_none(),
+        "un período vacío en el futuro haría figurar ese mes como un mes con datos"
+    );
 }

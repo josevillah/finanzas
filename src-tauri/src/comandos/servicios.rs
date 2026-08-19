@@ -151,7 +151,34 @@ pub fn generar_gastos_servicios(
     let mut guard = estado.conn();
     let tx = guard.transaction()?;
 
-    let periodo = repos::periodos::obtener_o_crear(&tx, anio, mes)?;
+    let creados = generar_en_mes(&tx, anio, mes, fechas::hoy())?;
+
+    tx.commit()?;
+    Ok(creados)
+}
+
+/// Núcleo de la generación, con el día de hoy explícito.
+///
+/// `hoy` llega por parámetro y no se lee adentro para que los tests puedan
+/// fijar el mes, igual que en `aplicar_actualizacion`.
+pub fn generar_en_mes(
+    conn: &Connection,
+    anio: i32,
+    mes: u32,
+    hoy: NaiveDate,
+) -> Resultado<i32> {
+    // Un mes que todavía no llegó no genera nada, y se corta antes de crear el
+    // período para no dejar ni la fila vacía.
+    //
+    // Sin este tope, cualquier pantalla del período generaba los estimados del
+    // mes que estuviera mirando —basta un click de más en la flecha del
+    // selector— y esos movimientos descontaban disponible por plata que no
+    // había salido, en un mes que el selector después no alcanzaba a mostrar.
+    if fechas::mes_absoluto(anio, mes) > fechas::mes_absoluto(hoy.year(), hoy.month()) {
+        return Ok(0);
+    }
+
+    let periodo = repos::periodos::obtener_o_crear(conn, anio, mes)?;
     // Un mes cerrado está congelado; se sale sin ruido para que abrirlo a
     // mirar no reviente.
     if periodo.estado == "cerrado" {
@@ -161,13 +188,13 @@ pub fn generar_gastos_servicios(
     let ultimo_dia = fechas::ultimo_dia(anio, mes)?;
     let dias_mes = fechas::dias_del_mes(anio, mes);
 
-    let ya_tienen: HashSet<i64> = repos::movimientos::servicios_con_gasto(&tx, periodo.id)?
+    let ya_tienen: HashSet<i64> = repos::movimientos::servicios_con_gasto(conn, periodo.id)?
         .into_iter()
         .collect();
 
     let mut creados = 0;
 
-    for servicio in repos::servicios::listar(&tx, true)? {
+    for servicio in repos::servicios::listar(conn, true)? {
         if ya_tienen.contains(&servicio.id) {
             continue;
         }
@@ -187,7 +214,7 @@ pub fn generar_gastos_servicios(
         let fecha = format!("{anio:04}-{mes:02}-{dia:02}");
 
         repos::movimientos::insertar_estimado_servicio(
-            &tx,
+            conn,
             periodo.id,
             servicio.id,
             servicio.categoria_id,
@@ -198,7 +225,6 @@ pub fn generar_gastos_servicios(
         creados += 1;
     }
 
-    tx.commit()?;
     Ok(creados)
 }
 

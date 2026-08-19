@@ -1,7 +1,9 @@
+use chrono::Datelike;
 use rusqlite::Connection;
 use tauri::State;
 
 use crate::dominio::dinero::Monto;
+use crate::dominio::fechas;
 use crate::error::{AppError, Resultado};
 use crate::modelos::cuenta::{DesgloseSaldo, NuevaCuenta, ResumenCuentas};
 use crate::repos;
@@ -72,21 +74,38 @@ pub fn eliminar_cuenta(estado: State<'_, EstadoApp>, id: i64) -> Resultado<()> {
 // Reciben `&Connection` —o una transacción, vía Deref— para poder cubrirlos con
 // tests sin levantar Tauri.
 
-/// Arma el desglose leyendo las tres fuentes de plata.
+/// Arma el desglose leyendo las tres fuentes de plata, hasta el mes en curso.
 ///
 /// El sueldo vive en `periodos` y no en `movimientos`: sin sumarlo, el
 /// patrimonio restaría todos los gastos sin casi ningún ingreso. Es la misma
 /// definición que usa el resumen del mes.
 pub fn desglose(conn: &Connection) -> Resultado<DesgloseSaldo> {
+    let hoy = fechas::hoy();
+    desglose_hasta(conn, hoy.year(), hoy.month())
+}
+
+/// Núcleo del desglose, con el mes de corte explícito.
+///
+/// Todo lo que caiga en un mes **posterior** al indicado queda fuera: un
+/// estimado de un servicio que todavía no venció, o un gasto anotado con fecha
+/// adelantada, son una proyección y no plata que ya salió. Contarlos hacía que
+/// el disponible se viera más bajo que el banco por algo que no pasó.
+///
+/// El mes llega por parámetro en vez de leerse adentro para que los tests
+/// puedan fijarlo; si no, dependerían del día en que se ejecutan. Es el mismo
+/// arreglo que usan `armar_rango` y `aplicar_actualizacion`.
+pub fn desglose_hasta(conn: &Connection, anio: i32, mes: u32) -> Resultado<DesgloseSaldo> {
+    let hasta_abs = fechas::mes_absoluto(anio, mes);
+
     let (ingresos_registrados, gastos, gastos_estimados) =
-        repos::movimientos::totales_historicos(conn)?;
+        repos::movimientos::totales_historicos(conn, hasta_abs)?;
 
     Ok(DesgloseSaldo {
         saldo_inicial: repos::configuracion::obtener_monto(
             conn,
             repos::configuracion::SALDO_INICIAL,
         )?,
-        ingresos_declarados: repos::periodos::total_ingresos_declarados(conn)?,
+        ingresos_declarados: repos::periodos::total_ingresos_declarados(conn, hasta_abs)?,
         ingresos_registrados,
         gastos,
         gastos_estimados,

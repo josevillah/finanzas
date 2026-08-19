@@ -128,15 +128,23 @@ pub fn resumen_de_periodos(conn: &Connection) -> Resultado<Vec<(i32, u32, i32, i
     Ok(filas.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
-/// Suma de sueldos y otros ingresos declarados en todos los períodos.
+/// Suma de sueldos y otros ingresos declarados en los períodos **hasta** el
+/// mes indicado, inclusive (`hasta_abs` es un
+/// [`crate::dominio::fechas::mes_absoluto`]).
 ///
 /// El sueldo vive en `periodos`, no en `movimientos`: sin esto el patrimonio
 /// restaría todos los gastos sumando casi ningún ingreso. Es la misma
 /// definición de ingreso que usa el resumen del mes.
-pub fn total_ingresos_declarados(conn: &Connection) -> Resultado<Monto> {
+///
+/// El tope es el mismo que el de los gastos, y por la misma razón: si el
+/// sueldo de un mes que no llegó no cuenta como plata que entró, los gastos de
+/// ese mes tampoco pueden contar como plata que salió.
+pub fn total_ingresos_declarados(conn: &Connection, hasta_abs: i64) -> Resultado<Monto> {
     let total: Monto = conn.query_row(
-        "SELECT COALESCE(SUM(sueldo_liquido + otros_ingresos), 0) FROM periodos",
-        [],
+        "SELECT COALESCE(SUM(sueldo_liquido + otros_ingresos), 0)
+         FROM periodos
+         WHERE (anio * 12 + mes) <= ?1",
+        params![hasta_abs],
         |f| f.get(0),
     )?;
     Ok(total)

@@ -491,10 +491,15 @@ pub fn insertar_activacion_manual(
     Ok(conn.last_insert_rowid())
 }
 
-/// Ingresos, gastos y gastos aún estimados de **toda** la tabla.
+/// Ingresos, gastos y gastos aún estimados acumulados **hasta** el mes
+/// indicado, inclusive (`hasta_abs` es un [`crate::dominio::fechas::mes_absoluto`]).
 ///
-/// Sin filtro de período ni de estado del mes: el patrimonio es acumulativo
-/// desde siempre, y un mes cerrado no devuelve la plata que salió.
+/// Sin filtro de estado del mes: el patrimonio es acumulativo desde siempre, y
+/// un mes cerrado no devuelve la plata que salió. Pero sí con tope hacia
+/// adelante: un movimiento de un mes que todavía no llega es una proyección,
+/// no plata que salió, y descontarlo hoy dejaría el disponible bajo por algo
+/// que no pasó. El corte es por período —el agrupador canónico del resto de
+/// las consultas— y no por `fecha`.
 ///
 /// Los estimados se suman a los gastos y además se devuelven aparte. Contarlos
 /// deja el disponible algo bajo mientras un servicio del mes en curso no
@@ -502,15 +507,18 @@ pub fn insertar_activacion_manual(
 /// excluirlos, en cambio, abriría una brecha creciente con cada mes viejo que
 /// quedó sin confirmar. El tercer valor existe para poder explicarlo en
 /// pantalla en vez de que el número se vea mal sin razón aparente.
-pub fn totales_historicos(conn: &Connection) -> Resultado<(Monto, Monto, Monto)> {
+pub fn totales_historicos(conn: &Connection, hasta_abs: i64) -> Resultado<(Monto, Monto, Monto)> {
+    // El JOIN no pierde filas: `periodo_id` es NOT NULL y apunta a `periodos`.
     let fila = conn.query_row(
         "SELECT
-            COALESCE(SUM(CASE WHEN tipo = 'ingreso' THEN monto ELSE 0 END), 0),
-            COALESCE(SUM(CASE WHEN tipo = 'gasto' THEN monto ELSE 0 END), 0),
-            COALESCE(SUM(CASE WHEN tipo = 'gasto' AND es_estimado = 1
-                              THEN monto ELSE 0 END), 0)
-         FROM movimientos",
-        [],
+            COALESCE(SUM(CASE WHEN m.tipo = 'ingreso' THEN m.monto ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN m.tipo = 'gasto' THEN m.monto ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN m.tipo = 'gasto' AND m.es_estimado = 1
+                              THEN m.monto ELSE 0 END), 0)
+         FROM movimientos m
+         JOIN periodos p ON p.id = m.periodo_id
+         WHERE (p.anio * 12 + p.mes) <= ?1",
+        params![hasta_abs],
         |f| Ok((f.get(0)?, f.get(1)?, f.get(2)?)),
     )?;
     Ok(fila)
