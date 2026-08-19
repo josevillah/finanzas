@@ -463,3 +463,38 @@ fn el_reinicio_no_deja_notas_de_ahorro_huerfanas() {
         "las cuentas se van y el CASCADE tiene que llevarse sus notas"
     );
 }
+
+#[test]
+fn el_reinicio_borra_las_metas() {
+    use finanzas_lib::comandos::cuentas::{crear as crear_cuenta, mover, Direccion};
+    use finanzas_lib::comandos::metas::crear as crear_meta;
+    use finanzas_lib::modelos::cuenta::NuevaCuenta;
+    use finanzas_lib::modelos::meta::NuevaMeta;
+
+    let conn = base();
+
+    finanzas_lib::comandos::cuentas::fijar_inicial(&conn, 800_000).unwrap();
+    let viaje = crear_cuenta(&conn, &NuevaCuenta { nombre: "Viaje".into() }).unwrap();
+    mover(&conn, viaje, 300_000, Direccion::Apartar).unwrap();
+
+    for (nombre, objetivo) in [("Japón", 2_500_000), ("Notebook", 900_000)] {
+        crear_meta(
+            &conn,
+            &NuevaMeta {
+                nombre: nombre.into(),
+                monto_objetivo: objetivo,
+                cuenta_id: Some(viaje),
+                fecha_objetivo: None,
+                notas: None,
+            },
+        )
+        .unwrap();
+    }
+
+    // Una meta es un dato financiero: el reinicio se la lleva, y se va antes
+    // que la cuenta a la que apunta.
+    vaciar(&conn, false).unwrap();
+
+    assert_eq!(contar(&conn, "metas"), 0);
+    assert_eq!(contar(&conn, "cuentas"), 0);
+}

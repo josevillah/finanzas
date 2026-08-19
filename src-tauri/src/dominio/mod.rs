@@ -5,4 +5,5 @@ pub mod amortizacion;
 pub mod csv;
 pub mod dinero;
 pub mod fechas;
+pub mod metas;
 pub mod respaldos;

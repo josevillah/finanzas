@@ -192,6 +192,13 @@ pub fn run() {
             comandos::notas_ahorro::crear_nota,
             comandos::notas_ahorro::actualizar_nota,
             comandos::notas_ahorro::eliminar_nota,
+            // metas
+            comandos::metas::resumen_metas,
+            comandos::metas::crear_meta,
+            comandos::metas::actualizar_meta,
+            comandos::metas::cambiar_estado_meta,
+            comandos::metas::eliminar_meta,
+            comandos::metas::reordenar_metas,
             // presupuesto
             comandos::presupuestos::resumen_presupuesto,
             comandos::presupuestos::asignar_presupuesto,

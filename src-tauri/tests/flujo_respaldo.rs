@@ -675,3 +675,98 @@ fn un_respaldo_sin_la_tabla_de_notas_sigue_siendo_valido() {
         "la tabla queda creada y utilizable, vacía"
     );
 }
+
+#[test]
+fn las_metas_sobreviven_a_un_ciclo_de_respaldo() {
+    use finanzas_lib::comandos::cuentas::{crear as crear_cuenta, mover, Direccion};
+    use finanzas_lib::comandos::metas::crear as crear_meta;
+    use finanzas_lib::modelos::cuenta::NuevaCuenta;
+    use finanzas_lib::modelos::meta::NuevaMeta;
+
+    let dir = carpeta("metas-ida-y-vuelta");
+    let archivo = dir.join("respaldo.db");
+
+    let origen = base();
+    con_datos(&origen);
+    let viaje = crear_cuenta(&origen, &NuevaCuenta { nombre: "Viaje".into() }).unwrap();
+    mover(&origen, viaje, 100_000, Direccion::Apartar).unwrap();
+    crear_meta(
+        &origen,
+        &NuevaMeta {
+            nombre: "Japón".into(),
+            monto_objetivo: 2_500_000,
+            cuenta_id: Some(viaje),
+            fecha_objetivo: Some("2027-03-31".into()),
+            notas: None,
+        },
+    )
+    .unwrap();
+
+    origen.backup(DatabaseName::Main, &archivo, None).unwrap();
+
+    let mut destino = base();
+    destino
+        .restore(
+            DatabaseName::Main,
+            &archivo,
+            None::<fn(rusqlite::backup::Progress)>,
+        )
+        .unwrap();
+
+    let metas = repos::metas::listar(&destino, None).unwrap();
+    assert_eq!(metas.len(), 1);
+    assert_eq!(metas[0].nombre, "Japón");
+    assert_eq!(metas[0].monto_objetivo, 2_500_000);
+    assert_eq!(
+        metas[0].cuenta_id,
+        Some(viaje),
+        "el vínculo con la cuenta viaja con el respaldo"
+    );
+}
+
+#[test]
+fn un_respaldo_anterior_a_las_metas_sigue_siendo_valido() {
+    // El criterio está en TABLAS_IDENTIDAD: agregar `metas` ahí rechazaría
+    // respaldos buenos hechos con versiones anteriores de la app.
+    let dir = carpeta("respaldo-sin-metas");
+    let archivo = dir.join("v10.db");
+
+    let mut vieja = Connection::open(&archivo).unwrap();
+    migraciones::ejecutar_hasta(&mut vieja, 10).unwrap();
+    assert!(
+        vieja
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'metas'",
+                [],
+                |f| f.get::<_, i64>(0)
+            )
+            .unwrap()
+            == 0,
+        "la base de prueba no debe tener todavía la tabla metas"
+    );
+    drop(vieja);
+
+    assert_eq!(validar_respaldo(&archivo).unwrap(), 10);
+
+    // Y al restaurarla se le aplica la migración que le falta.
+    let mut destino = base();
+    destino
+        .restore(
+            DatabaseName::Main,
+            &archivo,
+            None::<fn(rusqlite::backup::Progress)>,
+        )
+        .unwrap();
+    migraciones::ejecutar(&mut destino).unwrap();
+
+    assert!(repos::metas::listar(&destino, None).unwrap().is_empty());
+}
+
+#[test]
+fn las_metas_se_exportan_a_csv_con_su_encabezado() {
+    let conn = base();
+    let (contenido, filas) = tabla_a_csv(&conn, "metas").unwrap();
+
+    assert!(contenido.starts_with("id,nombre,monto_objetivo,"));
+    assert_eq!(filas, 0);
+}

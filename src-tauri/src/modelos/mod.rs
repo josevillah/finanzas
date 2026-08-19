@@ -7,6 +7,7 @@ pub mod configuracion;
 pub mod cuenta;
 pub mod cuota;
 pub mod deuda;
+pub mod meta;
 pub mod movimiento;
 pub mod nota_ahorro;
 pub mod periodo;
@@ -24,6 +25,7 @@ pub use deuda::{
     CargaFinanciera, Deuda, DeudaDetalle, DeudaResumen, EstadoDeuda, FechaLibertad, Liberacion,
     MesCarga, NuevaDeuda, Semaforo, TipoDeuda,
 };
+pub use meta::{EstadoMeta, Meta, MetaDetalle, NuevaMeta, ResumenMetas};
 pub use movimiento::{
     FiltroMovimientos, MedioPago, Movimiento, MovimientoDetalle, NuevoMovimiento, TipoMovimiento,
 };

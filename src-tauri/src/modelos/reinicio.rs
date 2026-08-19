@@ -19,6 +19,8 @@ pub struct ResumenReinicio {
     pub categorias_propias: i64,
     /// Cuentas de ahorro.
     pub cuentas: i64,
+    /// Objetivos de compra o ahorro.
+    pub metas: i64,
     /// Suma de lo que se borraría sin contar servicios ni categorías.
     pub total: i64,
 }

@@ -12,12 +12,15 @@ use crate::EstadoApp;
 
 /// Tablas que se vacían, en orden de dependencia: los hijos antes que los
 /// padres. Con `foreign_keys = ON` el orden inverso aborta el borrado.
-const TABLAS_A_VACIAR: [&str; 5] = [
+const TABLAS_A_VACIAR: [&str; 6] = [
     "movimientos",
     "cuotas",
     "deudas",
     "presupuestos",
     "periodos",
+    // Antes que las cuentas, que se vacían más abajo: una meta es un dato
+    // financiero como cualquier otro y el reinicio tiene que llevársela.
+    "metas",
 ];
 
 /// Cuántos registros se perderían. Se consulta antes de mostrar el diálogo.
@@ -40,8 +43,10 @@ pub fn resumen_reinicio(estado: State<'_, EstadoApp>) -> Resultado<ResumenReinic
         |f| f.get(0),
     )?;
 
+    let metas = contar("metas")?;
+
     Ok(ResumenReinicio {
-        total: deudas + cuotas + movimientos + presupuestos + periodos,
+        total: deudas + cuotas + movimientos + presupuestos + periodos + metas,
         deudas,
         cuotas,
         movimientos,
@@ -51,6 +56,7 @@ pub fn resumen_reinicio(estado: State<'_, EstadoApp>) -> Resultado<ResumenReinic
         categorias_propias,
         // Cuentas de ahorro.
         cuentas: contar("cuentas")?,
+        metas,
     })
 }
 

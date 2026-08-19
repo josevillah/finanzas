@@ -7,6 +7,7 @@ pub mod configuracion;
 pub mod cuentas;
 pub mod cuotas;
 pub mod deudas;
+pub mod metas;
 pub mod movimientos;
 pub mod notas_ahorro;
 pub mod periodos;

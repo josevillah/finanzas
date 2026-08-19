@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tauri dev",
+    "dev:metas": "tauri dev --config {\\\"identifier\\\":\\\"cl.local.finanzas-metas\\\"}",
     "build": "tauri build",
     "build:local": "tauri build --config {\\\"bundle\\\":{\\\"createUpdaterArtifacts\\\":false}}",
     "dev:vite": "vite",

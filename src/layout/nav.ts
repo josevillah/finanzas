@@ -27,6 +27,20 @@ export const NAVEGACION: GrupoNav[] = [
       },
     ],
   },
+  // Junto a Saldos y no dentro de "Mes": una meta no pertenece a un período,
+  // y su avance sale de los ahorros.
+  {
+    titulo: "Metas",
+    items: [
+      {
+        ruta: "/metas",
+        etiqueta: "Metas",
+        corto: "Metas",
+        icono: "🏆",
+        descripcion: "Objetivos de compra o ahorro",
+      },
+    ],
+  },
   {
     titulo: "Mes",
     items: [

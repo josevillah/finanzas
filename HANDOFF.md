@@ -41,7 +41,7 @@ src/                       frontend, solo presentación
   lib/                     moneda, fechas, wrappers de invoke, tema, cn
   types/dominio.ts         espejo TypeScript de los structs de Rust
   components/              UI genérica y de dominio
-  layout/                  Shell con navegación en 3 grupos
+  layout/                  Shell con navegación por grupos
   features/
     deudas/                Fase 1
     mes/                   Fase 2: contexto del mes, resumen, ingresos
@@ -50,14 +50,17 @@ src/                       frontend, solo presentación
     presupuesto/           Fase 3
     reportes/              Fase 3
     respaldo/              Fase 4
+    cuentas/               disponible calculado y ahorros
+    metas/                 objetivos de compra o ahorro
+    configuracion/         preferencias y reinicio de datos
 
 src-tauri/
-  migrations/*.sql         11 migraciones, embebidas con include_str!
-  src/dominio/             lógica pura: dinero, fechas, amortización, csv
+  migrations/*.sql         12 migraciones, embebidas con include_str!
+  src/dominio/             lógica pura: dinero, fechas, amortización, csv, metas
   src/modelos/             structs de tabla + DTOs (serde, snake_case)
   src/repos/               TODO el SQL, nada de SQL fuera de acá
-  src/comandos/            45 comandos de Tauri, capa delgada
-  tests/                   12 archivos de integración contra SQLite en memoria
+  src/comandos/            73 comandos de Tauri, capa delgada
+  tests/                   13 archivos de integración contra SQLite en memoria
 ```
 
 **Capas:** `comandos` valida entrada y abre transacciones → `repos` ejecuta SQL →
@@ -129,6 +132,15 @@ transacción, idempotente, corre en cada arranque. Para agregar una: crear el
 - Restauración con validación previa y copia de seguridad automática
 - Exportación a JSON (un archivo) y CSV (uno por tabla)
 - Recordatorio si pasaron más de 7 días desde el último respaldo
+
+### Metas (rama `feature/metas`, migración 0012)
+- Objetivos de compra o ahorro con su costo, en su propia sección
+- Lista ordenada por prioridad, reordenable con ▲ / ▼
+- Vínculo opcional a una cuenta de ahorro: de ahí sale el avance
+- Ritmo mensual necesario si hay fecha objetivo
+- Proyección contra el balance promedio de los últimos 3 meses cerrados
+- Totales del conjunto: objetivos activos contra lo realmente ahorrado
+- Filtro por activas / cumplidas / archivadas; cumplir no borra
 
 ---
 
@@ -215,12 +227,45 @@ contra que el disco falle, que es justo lo que el recordatorio busca evitar.
 Ctrl+Shift+G, el registro falla y en release nadie ve un `eprintln!`. Con la app
 viviendo en bandeja, el usuario solo notaría que el atajo "no hace nada".
 
+**Una meta no mueve plata.** No entra en el disponible ni en el patrimonio:
+es una etiqueta sobre ahorros que ya existen, o un número de referencia si
+todavía no hay nada apartado. Por eso vive en su propia tabla y ningún cálculo
+de saldos la consulta. Hay un test que lo fija.
+
+**El saldo de una cuenta compartida se reparte por prioridad, y solo entre las
+metas activas.** La más prioritaria consume primero; lo que sobra pasa a la
+siguiente. Una meta cumplida deja de competir —se muestra al 100% y ya está—
+porque seguir reservándole saldo mostraría comprometida una plata que lo más
+probable es que ya se haya gastado en eso mismo.
+
+**El balance promedio de las metas usa los 3 meses cerrados anteriores, no el
+mes en curso.** El mes en curso está a medias: el sueldo puede no haber
+entrado y los gastos recién empiezan, así que promediarlo daría una proyección
+distinta según el día en que se mire. Los meses sin actividad tampoco entran:
+la fila del período existe apenas uno navega a ese mes, y contarla como $0
+castigaría a quien lleva poco tiempo usando la app.
+
+**La proyección por meta supone que todo el balance va a esa meta.** Con
+varias metas los números no se suman, y la pantalla lo dice: el total del
+conjunto se muestra aparte.
+
+**Dos ramas numerando migraciones a la vez piden un desvío.** Metas se
+desarrolló con la 0012 mientras la 0011 (notas de ahorro) vivía en otra rama.
+El runner guarda el estado en `PRAGMA user_version`, así que una base que
+hubiera llegado a la 12 sin pasar por la 11 no la habría aplicado nunca: se
+salta todo lo que sea `version <= actual`. Mientras duró la separación, la rama
+se probó contra una base aparte (`npm run dev:metas`). Ya mergeada la 0011, las
+migraciones quedaron consecutivas y no hay nada especial que recordar; el
+script queda igual, por si vuelve a pasar. Si alguna base de desarrollo hubiera
+quedado en ese estado, se arregla restaurando **por archivo** la copia previa a
+migrar: restaurar desde la app vuelve a migrar y no sirve.
+
 ---
 
 ## Verificación
 
-- `cargo test` → **86 tests, todos verdes**
-  (unitarios en `dominio` + 4 archivos de integración contra SQLite en memoria)
+- `cargo test` → **253 tests, todos verdes**
+  (unitarios en `dominio` + 12 archivos de integración contra SQLite en memoria)
 - `npm run typecheck` → limpio en `src/` y `vite.config.ts`
 - `npm run build` → genera `.msi` y `.exe` sin warnings del código propio
 
@@ -235,6 +280,17 @@ npm run typecheck
 ```bash
 npm run dev
 ```
+
+Para probar una rama contra una base de juguete, sin tocar la real:
+
+```bash
+npm run dev:metas
+```
+
+Es `tauri dev` con el identificador `cl.local.finanzas-metas`, así que la app
+abre `%APPDATA%\cl.local.finanzas-metas\finanzas.db`. Sirve cada vez que una
+rama traiga una migración que todavía no se quiere aplicar a los datos de
+verdad.
 
 ```bash
 npm run build

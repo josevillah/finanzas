@@ -149,3 +149,39 @@ pub fn total_ingresos_declarados(conn: &Connection, hasta_abs: i64) -> Resultado
     )?;
     Ok(total)
 }
+
+/// Balance de cada mes dentro de una ventana, para la proyección de las metas.
+///
+/// Devuelve `(mes_absoluto, ingresos, gastos, n_movimientos)`. El balance es
+/// `ingresos - gastos` con la misma definición del resumen del mes: el sueldo
+/// y los otros ingresos declarados en el período, más los movimientos de tipo
+/// ingreso, menos los gastos.
+///
+/// `n_movimientos` viaja junto al balance porque un período puede existir sin
+/// contenido —`obtener_o_crear` corre desde comandos de lectura, así que basta
+/// navegar a un mes para dejar su fila—, y un mes vacío promediado como $0
+/// hundiría la proyección de quien lleva poco tiempo usando la app.
+pub fn balances_por_mes(
+    conn: &Connection,
+    desde_abs: i64,
+    hasta_abs: i64,
+) -> Resultado<Vec<(i64, Monto, Monto, i32)>> {
+    let mut stmt = conn.prepare(
+        "SELECT p.anio * 12 + p.mes,
+                p.sueldo_liquido + p.otros_ingresos
+                  + COALESCE((SELECT SUM(m.monto) FROM movimientos m
+                               WHERE m.periodo_id = p.id AND m.tipo = 'ingreso'), 0),
+                COALESCE((SELECT SUM(m.monto) FROM movimientos m
+                           WHERE m.periodo_id = p.id AND m.tipo = 'gasto'), 0),
+                (SELECT COUNT(*) FROM movimientos m WHERE m.periodo_id = p.id)
+           FROM periodos p
+          WHERE (p.anio * 12 + p.mes) BETWEEN ?1 AND ?2
+          ORDER BY p.anio, p.mes",
+    )?;
+
+    let filas = stmt.query_map(params![desde_abs, hasta_abs], |f| {
+        Ok((f.get(0)?, f.get(1)?, f.get(2)?, f.get(3)?))
+    })?;
+
+    Ok(filas.collect::<rusqlite::Result<Vec<_>>>()?)
+}

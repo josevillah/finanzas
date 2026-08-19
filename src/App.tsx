@@ -4,6 +4,7 @@ import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Categorias } from "@/features/catalogos/paginas/Categorias";
 import { CierreProvider } from "@/features/configuracion/CierreProvider";
 import { Cuentas } from "@/features/cuentas/paginas/Cuentas";
+import { Metas } from "@/features/metas/paginas/Metas";
 import { Configuracion } from "@/features/configuracion/paginas/Configuracion";
 import { Servicios } from "@/features/catalogos/paginas/Servicios";
 import { CalendarioCarga } from "@/features/deudas/paginas/CalendarioCarga";
@@ -45,6 +46,7 @@ export default function App() {
                   <Route index element={<Navigate to="/mes" replace />} />
 
                   <Route path="/cuentas" element={<Cuentas />} />
+                  <Route path="/metas" element={<Metas />} />
 
                   <Route path="/mes" element={<ResumenMes />} />
                   <Route path="/gastos" element={<Gastos />} />

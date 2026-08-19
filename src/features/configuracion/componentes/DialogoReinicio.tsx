@@ -184,6 +184,7 @@ function ListaDeBorrado({
     ["Meses", resumen.periodos],
     ["Categorías creadas por ti", resumen.categorias_propias],
     ["Cuentas de ahorro", resumen.cuentas],
+    ["Metas", resumen.metas],
   ];
 
   if (borrarServicios) seBorra.push(["Servicios recurrentes", resumen.servicios]);

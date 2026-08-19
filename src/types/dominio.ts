@@ -422,6 +422,8 @@ export interface ResumenReinicio {
   categorias_propias: number;
   /** Cuentas de ahorro. */
   cuentas: number;
+  /** Objetivos de compra o ahorro. */
+  metas: number;
   total: number;
 }
 
@@ -617,4 +619,72 @@ export interface ResumenCuentas {
   total_ahorrado: number;
   ahorros: CuentaConNotas[];
   desglose: DesgloseSaldo;
+}
+
+// ── metas ────────────────────────────────────────────────────────────────────
+
+export type EstadoMeta = "activa" | "cumplida" | "archivada";
+
+/**
+ * Un objetivo de compra o ahorro. No mueve plata: dice cuánto hace falta.
+ * El avance sale del saldo de la cuenta vinculada, si tiene.
+ */
+export interface Meta {
+  id: number;
+  nombre: string;
+  monto_objetivo: number;
+  /** Cuenta de ahorro que la financia. Sin ella no hay barra de avance. */
+  cuenta_id: number | null;
+  /** Menor es más prioritaria. */
+  prioridad: number;
+  /** ISO 'YYYY-MM-DD'. */
+  fecha_objetivo: string | null;
+  estado: EstadoMeta;
+  notas: string | null;
+  creada_en: string;
+}
+
+/** Payload de creación y edición. La prioridad se cambia solo reordenando. */
+export interface NuevaMeta {
+  nombre: string;
+  monto_objetivo: number;
+  cuenta_id: number | null;
+  fecha_objetivo: string | null;
+  notas: string | null;
+}
+
+/** Rust la serializa con `flatten`, así que los campos de Meta vienen inline. */
+export interface MetaDetalle extends Meta {
+  cuenta_nombre: string | null;
+  /** Parte del saldo de la cuenta que le toca, según el orden de prioridad. */
+  acumulado: number;
+  falta: number;
+  progreso_pct: number;
+  /** Hay cuenta vinculada de la cual leer el avance. */
+  tiene_progreso: boolean;
+  /** Cuánto habría que apartar por mes para llegar a la fecha objetivo. */
+  ritmo_mensual: number | null;
+  meses_restantes: number | null;
+  /** La fecha objetivo quedó atrás sin haber llegado. */
+  fecha_pasada: boolean;
+  /** Meses al ritmo del balance promedio. Null si no se puede proyectar. */
+  meses_al_ritmo: number | null;
+}
+
+export interface ResumenMetas {
+  metas: MetaDetalle[];
+  /** Suma de los objetivos de las metas activas. */
+  total_objetivo: number;
+  total_acumulado: number;
+  total_falta: number;
+  /** Todo lo apartado, esté o no comprometido con una meta. */
+  total_ahorrado: number;
+  ahorro_sin_meta: number;
+  /** Promedio del balance de los últimos meses cerrados con actividad. */
+  balance_promedio: number | null;
+  meses_al_ritmo: number | null;
+  meses_considerados: number;
+  n_activas: number;
+  n_cumplidas: number;
+  n_archivadas: number;
 }

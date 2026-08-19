@@ -29,6 +29,7 @@ export const RAICES = [
   "movimientos",
   "periodo",
   "meses-disponibles",
+  "metas",
   "periodos",
   "presupuesto",
   "reporte-hormiga",
@@ -52,6 +53,7 @@ export const claves = {
   calendario: (meses: number) => ["calendario", meses] as const,
   cargaFinanciera: (anio: number, mes: number) => ["carga-financiera", anio, mes] as const,
   cuentas: () => ["cuentas"] as const,
+  metas: (filtro: string) => ["metas", filtro] as const,
   cuotasMes: (anio: number, mes: number) => ["cuotas-mes", anio, mes] as const,
   fechaLibertad: () => ["fecha-libertad"] as const,
   simulacion: (monto: number, tasa: number, cuotas: number, fecha: string) =>
@@ -94,6 +96,9 @@ const POR_MOVIMIENTO = [
   "evolucion-gastos",
   "reporte-hormiga",
   "meses-disponibles",
+  // Las metas proyectan contra el balance promedio de los últimos meses, que
+  // sale de estos mismos movimientos.
+  "metas",
   // El disponible se calcula desde los movimientos: cada gasto o ingreso lo
   // cambia.
   "cuentas",
@@ -118,7 +123,8 @@ export type EventoDominio =
   | "deuda"
   | "periodo"
   | "presupuesto"
-  | "cuenta";
+  | "cuenta"
+  | "meta";
 
 export const RELACIONES: Record<EventoDominio, readonly Raiz[]> = {
   // Un servicio activo materializa su gasto del mes, así que arrastra todo lo
@@ -147,6 +153,9 @@ export const RELACIONES: Record<EventoDominio, readonly Raiz[]> = {
     "carga-financiera",
     "presupuesto",
     "cuentas",
+    // El sueldo entra en el balance del mes, y de ahí sale la proyección de
+    // las metas.
+    "metas",
   ],
 
   presupuesto: ["presupuesto"],
@@ -154,7 +163,13 @@ export const RELACIONES: Record<EventoDominio, readonly Raiz[]> = {
   // Apartar plata o ajustar el saldo inicial no alimenta ningún otro cálculo:
   // el presupuesto y los reportes salen de los movimientos, que no se tocan.
   // La dependencia va al revés, y está en POR_MOVIMIENTO.
-  cuenta: ["cuentas"],
+  //
+  // Las metas sí: su avance es el saldo de la cuenta a la que apuntan.
+  cuenta: ["cuentas", "metas"],
+
+  // Una meta no mueve plata: no invalida saldos ni nada del mes. Es el único
+  // evento del dominio que solo se refresca a sí mismo.
+  meta: ["metas"],
 };
 
 /**

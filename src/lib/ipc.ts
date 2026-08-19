@@ -21,6 +21,7 @@ import type {
   EstadoActualizacion,
   EstadoDeuda,
   EstadoPeriodo,
+  EstadoMeta,
   EstadoRespaldo,
   FechaLibertad,
   FiltroMovimientos,
@@ -31,6 +32,7 @@ import type {
   NuevaCuenta,
   NuevaNota,
   NuevaDeuda,
+  NuevaMeta,
   NuevoMovimiento,
   NuevoServicio,
   Periodo,
@@ -41,6 +43,7 @@ import type {
   ResultadoRestauracion,
   ResumenReinicio,
   ResumenCuentas,
+  ResumenMetas,
   ResumenTerceros,
   ResumenPeriodo,
   ResumenPresupuesto,
@@ -451,6 +454,40 @@ export function actualizarNota(id: number, nombre: string, monto: number): Promi
 
 export function eliminarNota(id: number): Promise<void> {
   return invoke("eliminar_nota", { id });
+}
+
+// ── metas ────────────────────────────────────────────────────────────────────
+
+/**
+ * Metas, sus cálculos y los totales del conjunto.
+ *
+ * El filtro es solo de presentación: los totales vienen siempre calculados
+ * sobre las metas activas, mire uno la lista que mire.
+ */
+export function resumenMetas(filtro?: EstadoMeta | "todas" | null): Promise<ResumenMetas> {
+  return invoke("resumen_metas", { filtro: filtro ?? null });
+}
+
+export function crearMeta(datos: NuevaMeta): Promise<number> {
+  return invoke("crear_meta", { datos });
+}
+
+export function actualizarMeta(id: number, datos: NuevaMeta): Promise<void> {
+  return invoke("actualizar_meta", { id, datos });
+}
+
+/** Marcar cumplida, archivar o volver a activar. Nunca borra. */
+export function cambiarEstadoMeta(id: number, nuevoEstado: EstadoMeta): Promise<void> {
+  return invoke("cambiar_estado_meta", { id, nuevoEstado });
+}
+
+export function eliminarMeta(id: number): Promise<void> {
+  return invoke("eliminar_meta", { id });
+}
+
+/** Los ids en el orden deseado. El backend renumera las prioridades. */
+export function reordenarMetas(ids: number[]): Promise<void> {
+  return invoke("reordenar_metas", { ids });
 }
 
 /** Los comandos rechazan con un string; esto lo normaliza para mostrarlo. */
