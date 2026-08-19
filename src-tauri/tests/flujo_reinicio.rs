@@ -431,3 +431,35 @@ fn el_reinicio_borra_los_ahorros_y_deja_el_saldo_inicial_en_cero() {
     assert_eq!(r.disponible, 0);
     assert_eq!(r.patrimonio, 0);
 }
+
+#[test]
+fn el_reinicio_no_deja_notas_de_ahorro_huerfanas() {
+    use finanzas_lib::comandos::cuentas::{crear, fijar_inicial, mover, Direccion};
+    use finanzas_lib::modelos::cuenta::NuevaCuenta;
+    use finanzas_lib::modelos::nota_ahorro::NuevaNota;
+
+    let conn = base();
+
+    fijar_inicial(&conn, 800_000).unwrap();
+    let fan = crear(&conn, &NuevaCuenta { nombre: "Fan".into() }).unwrap();
+    mover(&conn, fan, 100_000, Direccion::Apartar).unwrap();
+
+    finanzas_lib::comandos::notas_ahorro::crear(
+        &conn,
+        &NuevaNota {
+            cuenta_id: fan,
+            nombre: "Libros".into(),
+            monto: 25_000,
+        },
+    )
+    .unwrap();
+    assert_eq!(contar(&conn, "notas_ahorro"), 1);
+
+    vaciar(&conn, false).unwrap();
+
+    assert_eq!(
+        contar(&conn, "notas_ahorro"),
+        0,
+        "las cuentas se van y el CASCADE tiene que llevarse sus notas"
+    );
+}

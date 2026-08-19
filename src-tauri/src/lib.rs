@@ -189,6 +189,9 @@ pub fn run() {
             comandos::cuentas::crear_cuenta,
             comandos::cuentas::actualizar_cuenta,
             comandos::cuentas::eliminar_cuenta,
+            comandos::notas_ahorro::crear_nota,
+            comandos::notas_ahorro::actualizar_nota,
+            comandos::notas_ahorro::eliminar_nota,
             // presupuesto
             comandos::presupuestos::resumen_presupuesto,
             comandos::presupuestos::asignar_presupuesto,

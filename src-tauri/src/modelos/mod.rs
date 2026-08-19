@@ -8,6 +8,7 @@ pub mod cuenta;
 pub mod cuota;
 pub mod deuda;
 pub mod movimiento;
+pub mod nota_ahorro;
 pub mod periodo;
 pub mod presupuesto;
 pub mod reinicio;
@@ -26,6 +27,7 @@ pub use deuda::{
 pub use movimiento::{
     FiltroMovimientos, MedioPago, Movimiento, MovimientoDetalle, NuevoMovimiento, TipoMovimiento,
 };
+pub use nota_ahorro::{NotaAhorro, NuevaNota};
 pub use periodo::{GastoPorCategoria, Periodo, ResumenPeriodo};
 pub use presupuesto::{
     AsignacionPresupuesto, EstadoPresupuesto, LineaPresupuesto, Presupuesto, ResumenPresupuesto,

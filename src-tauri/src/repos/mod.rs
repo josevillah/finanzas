@@ -8,6 +8,7 @@ pub mod cuentas;
 pub mod cuotas;
 pub mod deudas;
 pub mod movimientos;
+pub mod notas_ahorro;
 pub mod periodos;
 pub mod presupuestos;
 pub mod servicios;

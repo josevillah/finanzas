@@ -62,6 +62,11 @@ const MIGRACIONES: &[(i32, &str, &str)] = &[
         "0010_limpieza_estimados_futuros",
         include_str!("../../migrations/0010_limpieza_estimados_futuros.sql"),
     ),
+    (
+        11,
+        "0011_notas_ahorro",
+        include_str!("../../migrations/0011_notas_ahorro.sql"),
+    ),
 ];
 
 /// Versión de esquema esperada por este binario.

@@ -453,7 +453,7 @@ fn los_nulos_quedan_como_celda_vacia() {
 }
 
 #[test]
-fn se_exportan_las_siete_tablas_del_modelo() {
+fn se_exportan_todas_las_tablas_del_modelo() {
     let conn = base();
     con_datos(&conn);
 
@@ -465,6 +465,8 @@ fn se_exportan_las_siete_tablas_del_modelo() {
         "cuotas",
         "movimientos",
         "presupuestos",
+        "cuentas",
+        "notas_ahorro",
     ] {
         let (contenido, _) = tabla_a_csv(&conn, tabla).unwrap();
         assert!(
@@ -584,4 +586,92 @@ fn el_saldo_inicial_y_los_ahorros_sobreviven_a_un_ciclo_de_respaldo() {
     assert_eq!(restaurado.disponible, esperado.disponible);
     assert_eq!(restaurado.patrimonio, esperado.patrimonio);
     assert_eq!(restaurado.ahorros.len(), 1);
+}
+
+// ── notas de ahorro en el respaldo ───────────────────────────────────────────
+
+/// Deja una cuenta de ahorro con una nota adentro.
+fn con_notas(conn: &Connection) -> i64 {
+    use finanzas_lib::comandos::cuentas::{crear, fijar_inicial, mover, Direccion};
+    use finanzas_lib::modelos::cuenta::NuevaCuenta;
+    use finanzas_lib::modelos::nota_ahorro::NuevaNota;
+
+    fijar_inicial(conn, 300_000).unwrap();
+    let fan = crear(conn, &NuevaCuenta { nombre: "Fan".into() }).unwrap();
+    mover(conn, fan, 100_000, Direccion::Apartar).unwrap();
+
+    finanzas_lib::comandos::notas_ahorro::crear(
+        conn,
+        &NuevaNota {
+            cuenta_id: fan,
+            nombre: "Libros".into(),
+            monto: 25_000,
+        },
+    )
+    .unwrap();
+
+    fan
+}
+
+#[test]
+fn las_notas_de_ahorro_entran_en_el_csv() {
+    let conn = base();
+    con_notas(&conn);
+
+    let (contenido, filas) = tabla_a_csv(&conn, "notas_ahorro").unwrap();
+
+    assert_eq!(filas, 1);
+    assert!(contenido.starts_with("id,cuenta_id,nombre,monto,orden"));
+    assert!(contenido.contains("Libros"));
+    assert!(contenido.contains("25000"), "los montos van en enteros");
+}
+
+#[test]
+fn las_notas_de_ahorro_cuentan_como_registros_del_usuario() {
+    let conn = base();
+    let antes = contar_registros(&conn).unwrap();
+
+    con_notas(&conn);
+
+    // Una cuenta y una nota.
+    assert_eq!(contar_registros(&conn).unwrap(), antes + 2);
+}
+
+#[test]
+fn un_respaldo_sin_la_tabla_de_notas_sigue_siendo_valido() {
+    // El caso real: una copia hecha con la versión anterior. No tiene
+    // `notas_ahorro` y no por eso deja de ser un respaldo bueno; al restaurarlo
+    // se le aplican las migraciones que le falten.
+    let dir = carpeta("respaldo-sin-notas");
+    let archivo = dir.join("v10.db");
+
+    let mut vieja = Connection::open(&archivo).unwrap();
+    migraciones::ejecutar_hasta(&mut vieja, 10).unwrap();
+    drop(vieja);
+
+    assert_eq!(
+        validar_respaldo(&archivo).unwrap(),
+        10,
+        "le falta una tabla que se agregó después, no una que lo identifique"
+    );
+
+    let mut destino = base();
+    destino
+        .restore(
+            DatabaseName::Main,
+            &archivo,
+            None::<fn(rusqlite::backup::Progress)>,
+        )
+        .unwrap();
+
+    migraciones::ejecutar(&mut destino).unwrap();
+
+    assert_eq!(
+        migraciones::version_actual(&destino).unwrap(),
+        migraciones::version_objetivo()
+    );
+    assert!(
+        repos::notas_ahorro::listar_todas(&destino).unwrap().is_empty(),
+        "la tabla queda creada y utilizable, vacía"
+    );
 }

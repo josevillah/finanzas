@@ -29,6 +29,7 @@ import type {
   MovimientoDetalle,
   NuevaCategoria,
   NuevaCuenta,
+  NuevaNota,
   NuevaDeuda,
   NuevoMovimiento,
   NuevoServicio,
@@ -434,6 +435,22 @@ export function actualizarCuenta(id: number, nombre: string, activa: boolean): P
 
 export function eliminarCuenta(id: number): Promise<void> {
   return invoke("eliminar_cuenta", { id });
+}
+
+// ── notas de propósito ───────────────────────────────────────────────────────
+//
+// Se leen dentro de `resumenCuentas`; acá solo van las escrituras.
+
+export function crearNota(datos: NuevaNota): Promise<number> {
+  return invoke("crear_nota", { datos });
+}
+
+export function actualizarNota(id: number, nombre: string, monto: number): Promise<void> {
+  return invoke("actualizar_nota", { id, nombre, monto });
+}
+
+export function eliminarNota(id: number): Promise<void> {
+  return invoke("eliminar_nota", { id });
 }
 
 /** Los comandos rechazan con un string; esto lo normaliza para mostrarlo. */

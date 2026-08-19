@@ -6,6 +6,7 @@ use crate::modelos::cuenta::Cuenta;
 use crate::modelos::cuota::Cuota;
 use crate::modelos::deuda::Deuda;
 use crate::modelos::movimiento::Movimiento;
+use crate::modelos::nota_ahorro::NotaAhorro;
 use crate::modelos::periodo::Periodo;
 use crate::modelos::presupuesto::Presupuesto;
 use crate::modelos::servicio::Servicio;
@@ -50,6 +51,9 @@ pub struct RespaldoJson {
     pub presupuestos: Vec<Presupuesto>,
     /// Cuentas de ahorro.
     pub cuentas: Vec<Cuenta>,
+    /// Notas de propósito dentro de cada cuenta de ahorro. Informativas: no
+    /// entran en ningún cálculo, pero son del usuario y se respaldan igual.
+    pub notas_ahorro: Vec<NotaAhorro>,
     /// Lo que el usuario tenía antes de empezar. No es un movimiento, así que
     /// sin esto el patrimonio no se podría reconstruir desde el JSON.
     pub saldo_inicial: Monto,

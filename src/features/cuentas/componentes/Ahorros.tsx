@@ -8,12 +8,13 @@ import { Vacio } from "@/components/ui/Estados";
 import { Insignia } from "@/components/ui/Insignia";
 import { Modal } from "@/components/ui/Modal";
 import { mensajeDeError } from "@/lib/ipc";
-import type { Cuenta } from "@/types/dominio";
+import type { Cuenta, CuentaConNotas } from "@/types/dominio";
 
 import { useActualizarCuenta, useApartar, useCrearCuenta, useEliminarCuenta, useRetirar } from "../hooks";
+import { NotasCuenta } from "./NotasCuenta";
 
 interface Props {
-  ahorros: Cuenta[];
+  ahorros: CuentaConNotas[];
   disponible: number;
   total: number;
 }
@@ -28,6 +29,8 @@ export function Ahorros({ ahorros, disponible, total }: Props) {
   const [creando, setCreando] = useState(false);
   const [moviendo, setMoviendo] = useState<Movimiento | null>(null);
   const [renombrando, setRenombrando] = useState<Cuenta | null>(null);
+  // Una sola cuenta desplegada a la vez: son pocas y así la lista no se dispara.
+  const [abierta, setAbierta] = useState<number | null>(null);
 
   const eliminar = useEliminarCuenta();
   const actualizar = useActualizarCuenta();
@@ -71,64 +74,89 @@ export function Ahorros({ ahorros, disponible, total }: Props) {
           {ahorros.map((c) => (
             <li
               key={c.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
+              className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
             >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">
-                  {c.nombre}
-                  {!c.activa ? (
-                    <Insignia tono="neutro" className="ml-2">
-                      Archivada
-                    </Insignia>
-                  ) : null}
-                </p>
-                <Moneda monto={c.saldo} className="text-lg font-semibold" />
+              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                <button
+                  type="button"
+                  aria-expanded={abierta === c.id}
+                  onClick={() => setAbierta((id) => (id === c.id ? null : c.id))}
+                  className="-m-1 flex min-w-0 items-center gap-2 rounded-lg p-1 text-left hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:hover:bg-slate-800/50"
+                >
+                  <span aria-hidden className="text-xs text-slate-400">
+                    {abierta === c.id ? "▾" : "▸"}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">
+                      {c.nombre}
+                      {!c.activa ? (
+                        <Insignia tono="neutro" className="ml-2">
+                          Archivada
+                        </Insignia>
+                      ) : null}
+                      {c.notas.length > 0 ? (
+                        <Insignia tono="indigo" className="ml-2">
+                          {c.notas.length} {c.notas.length === 1 ? "nota" : "notas"}
+                        </Insignia>
+                      ) : null}
+                    </span>
+                    <Moneda monto={c.saldo} className="text-lg font-semibold" />
+                  </span>
+                </button>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Boton
+                    tamano="sm"
+                    variante="secundario"
+                    onClick={() => setMoviendo({ cuenta: c, direccion: "apartar" })}
+                    disabled={disponible <= 0}
+                    title={disponible <= 0 ? "No tienes disponible para apartar" : undefined}
+                  >
+                    Apartar
+                  </Boton>
+                  <Boton
+                    tamano="sm"
+                    variante="secundario"
+                    onClick={() => setMoviendo({ cuenta: c, direccion: "retirar" })}
+                    disabled={c.saldo === 0}
+                  >
+                    Retirar
+                  </Boton>
+                  <Boton tamano="sm" variante="fantasma" onClick={() => setRenombrando(c)}>
+                    Renombrar
+                  </Boton>
+                  <Boton
+                    tamano="sm"
+                    variante="fantasma"
+                    onClick={() =>
+                      actualizar.mutate({ id: c.id, nombre: c.nombre, activa: !c.activa })
+                    }
+                    disabled={c.activa && c.saldo > 0}
+                    title={
+                      c.activa && c.saldo > 0 ? "Retira la plata antes de archivarla" : undefined
+                    }
+                  >
+                    {c.activa ? "Archivar" : "Reactivar"}
+                  </Boton>
+                  <Boton
+                    tamano="sm"
+                    variante="peligro"
+                    onClick={() => eliminar.mutate(c.id)}
+                    disabled={c.saldo > 0}
+                    title={
+                      c.saldo > 0
+                        ? "Retira la plata antes de eliminarla"
+                        : c.notas.length > 0
+                          ? "También se borrarán sus notas"
+                          : undefined
+                    }
+                  >
+                    Eliminar
+                  </Boton>
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Boton
-                  tamano="sm"
-                  variante="secundario"
-                  onClick={() => setMoviendo({ cuenta: c, direccion: "apartar" })}
-                  disabled={disponible <= 0}
-                  title={disponible <= 0 ? "No tienes disponible para apartar" : undefined}
-                >
-                  Apartar
-                </Boton>
-                <Boton
-                  tamano="sm"
-                  variante="secundario"
-                  onClick={() => setMoviendo({ cuenta: c, direccion: "retirar" })}
-                  disabled={c.saldo === 0}
-                >
-                  Retirar
-                </Boton>
-                <Boton tamano="sm" variante="fantasma" onClick={() => setRenombrando(c)}>
-                  Renombrar
-                </Boton>
-                <Boton
-                  tamano="sm"
-                  variante="fantasma"
-                  onClick={() =>
-                    actualizar.mutate({ id: c.id, nombre: c.nombre, activa: !c.activa })
-                  }
-                  disabled={c.activa && c.saldo > 0}
-                  title={
-                    c.activa && c.saldo > 0 ? "Retira la plata antes de archivarla" : undefined
-                  }
-                >
-                  {c.activa ? "Archivar" : "Reactivar"}
-                </Boton>
-                <Boton
-                  tamano="sm"
-                  variante="peligro"
-                  onClick={() => eliminar.mutate(c.id)}
-                  disabled={c.saldo > 0}
-                  title={c.saldo > 0 ? "Retira la plata antes de eliminarla" : undefined}
-                >
-                  Eliminar
-                </Boton>
-              </div>
+              {abierta === c.id ? <NotasCuenta cuenta={c} /> : null}
             </li>
           ))}
         </ul>

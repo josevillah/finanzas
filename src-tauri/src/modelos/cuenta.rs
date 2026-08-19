@@ -2,6 +2,7 @@ use rusqlite::Row;
 use serde::{Deserialize, Serialize};
 
 use crate::dominio::dinero::Monto;
+use crate::modelos::nota_ahorro::NotaAhorro;
 
 /// Una cuenta de ahorro: plata apartada del disponible para no gastarla.
 ///
@@ -85,12 +86,41 @@ impl DesgloseSaldo {
     }
 }
 
+/// Una cuenta de ahorro con el desglose informativo de su saldo.
+///
+/// Las notas no participan de ningún cálculo. `total_notas` y `sin_asignar`
+/// existen para que la pantalla pueda avisar cuando no cuadran sin tener que
+/// sumarlas ella misma: la aritmética vive en Rust.
+#[derive(Debug, Clone, Serialize)]
+pub struct CuentaConNotas {
+    #[serde(flatten)]
+    pub cuenta: Cuenta,
+    pub notas: Vec<NotaAhorro>,
+    pub total_notas: Monto,
+    /// `saldo - total_notas`. Positivo: queda plata sin anotar. Negativo: las
+    /// notas se pasaron del saldo, que es un estado válido y solo se avisa.
+    pub sin_asignar: Monto,
+}
+
+impl CuentaConNotas {
+    pub fn nueva(cuenta: Cuenta, notas: Vec<NotaAhorro>) -> Self {
+        let total_notas: Monto = notas.iter().map(|n| n.monto).sum();
+
+        CuentaConNotas {
+            sin_asignar: cuenta.saldo - total_notas,
+            total_notas,
+            cuenta,
+            notas,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ResumenCuentas {
     pub disponible: Monto,
     /// Disponible más ahorros. No resta deudas: no es patrimonio neto.
     pub patrimonio: Monto,
     pub total_ahorrado: Monto,
-    pub ahorros: Vec<Cuenta>,
+    pub ahorros: Vec<CuentaConNotas>,
     pub desglose: DesgloseSaldo,
 }

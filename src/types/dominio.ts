@@ -563,6 +563,37 @@ export interface NuevaCuenta {
   nombre: string;
 }
 
+/**
+ * Una anotación de propósito dentro de una cuenta de ahorro: cuánto de lo que
+ * hay ahí está reservado para algo.
+ *
+ * Es informativa. No mueve plata ni entra en el disponible ni en el patrimonio.
+ */
+export interface NotaAhorro {
+  id: number;
+  cuenta_id: number;
+  nombre: string;
+  monto: number;
+  orden: number;
+}
+
+export interface NuevaNota {
+  cuenta_id: number;
+  nombre: string;
+  monto: number;
+}
+
+/** Los campos de Cuenta vienen inline (serde flatten). */
+export interface CuentaConNotas extends Cuenta {
+  notas: NotaAhorro[];
+  total_notas: number;
+  /**
+   * `saldo - total_notas`. Positivo: queda plata sin anotar. Negativo: las
+   * notas se pasaron del saldo, que es válido y solo se avisa.
+   */
+  sin_asignar: number;
+}
+
 /** De dónde sale el disponible, término por término. */
 export interface DesgloseSaldo {
   /** Lo que había antes de empezar a usar la app. Lo declara el usuario. */
@@ -584,6 +615,6 @@ export interface ResumenCuentas {
   /** Disponible más ahorros. No resta deudas: no es patrimonio neto. */
   patrimonio: number;
   total_ahorrado: number;
-  ahorros: Cuenta[];
+  ahorros: CuentaConNotas[];
   desglose: DesgloseSaldo;
 }

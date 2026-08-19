@@ -16,7 +16,7 @@ use crate::repos;
 use crate::EstadoApp;
 
 /// Las tablas con datos del usuario, en orden de dependencia.
-const TABLAS: [&str; 8] = [
+const TABLAS: [&str; 9] = [
     "periodos",
     "categorias",
     "servicios",
@@ -25,6 +25,7 @@ const TABLAS: [&str; 8] = [
     "movimientos",
     "presupuestos",
     "cuentas",
+    "notas_ahorro",
 ];
 
 /// Tablas que identifican un archivo como base de Finanzas.
@@ -258,6 +259,7 @@ pub fn exportar_json(estado: State<'_, EstadoApp>, destino: String) -> Resultado
         movimientos: repos::movimientos::listar_todos(&guard)?,
         presupuestos: repos::presupuestos::listar_todos(&guard)?,
         cuentas: repos::cuentas::listar(&guard, false)?,
+        notas_ahorro: repos::notas_ahorro::listar_todas(&guard)?,
         saldo_inicial: repos::configuracion::obtener_monto(
             &guard,
             repos::configuracion::SALDO_INICIAL,
@@ -271,7 +273,8 @@ pub fn exportar_json(estado: State<'_, EstadoApp>, destino: String) -> Resultado
         + respaldo.cuotas.len()
         + respaldo.movimientos.len()
         + respaldo.presupuestos.len()
-        + respaldo.cuentas.len()) as i64;
+        + respaldo.cuentas.len()
+        + respaldo.notas_ahorro.len()) as i64;
 
     let texto = serde_json::to_string_pretty(&respaldo)
         .map_err(|e| AppError::validacion(format!("No se pudo generar el JSON: {e}")))?;

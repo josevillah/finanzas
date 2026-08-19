@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::Datelike;
 use rusqlite::Connection;
 use tauri::State;
@@ -5,7 +7,8 @@ use tauri::State;
 use crate::dominio::dinero::Monto;
 use crate::dominio::fechas;
 use crate::error::{AppError, Resultado};
-use crate::modelos::cuenta::{DesgloseSaldo, NuevaCuenta, ResumenCuentas};
+use crate::modelos::cuenta::{CuentaConNotas, DesgloseSaldo, NuevaCuenta, ResumenCuentas};
+use crate::modelos::nota_ahorro::NotaAhorro;
 use crate::repos;
 use crate::EstadoApp;
 
@@ -120,9 +123,29 @@ pub fn armar_resumen(conn: &Connection) -> Resultado<ResumenCuentas> {
         disponible: desglose.disponible(),
         patrimonio: desglose.patrimonio(),
         total_ahorrado: desglose.apartado,
-        ahorros: repos::cuentas::listar(conn, false)?,
+        ahorros: ahorros_con_notas(conn)?,
         desglose,
     })
+}
+
+/// Las cuentas con sus notas de propósito colgadas.
+///
+/// Una sola consulta de notas para todas las cuentas, agrupadas acá: es el
+/// mismo arreglo que usa `resumen_servicios` con los gastos por servicio.
+/// Las notas no tocan ningún total del resumen; van como anotación.
+fn ahorros_con_notas(conn: &Connection) -> Resultado<Vec<CuentaConNotas>> {
+    let mut por_cuenta: HashMap<i64, Vec<NotaAhorro>> = HashMap::new();
+    for nota in repos::notas_ahorro::listar_todas(conn)? {
+        por_cuenta.entry(nota.cuenta_id).or_default().push(nota);
+    }
+
+    Ok(repos::cuentas::listar(conn, false)?
+        .into_iter()
+        .map(|c| {
+            let notas = por_cuenta.remove(&c.id).unwrap_or_default();
+            CuentaConNotas::nueva(c, notas)
+        })
+        .collect())
 }
 
 /// El saldo inicial admite negativos a propósito: quien empezó a usar la app
