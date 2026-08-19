@@ -7,6 +7,7 @@ use crate::modelos::cuota::Cuota;
 use crate::modelos::deuda::Deuda;
 use crate::modelos::meta::Meta;
 use crate::modelos::movimiento::Movimiento;
+use crate::modelos::movimiento_ahorro::MovimientoAhorro;
 use crate::modelos::nota_ahorro::NotaAhorro;
 use crate::modelos::periodo::Periodo;
 use crate::modelos::presupuesto::Presupuesto;
@@ -55,6 +56,9 @@ pub struct RespaldoJson {
     /// Notas de propósito dentro de cada cuenta de ahorro. Informativas: no
     /// entran en ningún cálculo, pero son del usuario y se respaldan igual.
     pub notas_ahorro: Vec<NotaAhorro>,
+    /// Historial de plata que entró y salió de los ahorros. No son gastos:
+    /// no entran en ningún total del mes, pero son datos del usuario.
+    pub movimientos_ahorro: Vec<MovimientoAhorro>,
     /// Objetivos de compra o ahorro. No son plata: son lo que uno se propuso.
     pub metas: Vec<Meta>,
     /// Lo que el usuario tenía antes de empezar. No es un movimiento, así que

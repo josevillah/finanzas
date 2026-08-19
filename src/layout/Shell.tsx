@@ -15,18 +15,24 @@ export function Shell() {
   const { abrir } = useCaptura();
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 md:flex">
-        <div className="mb-5 px-2">
+    // `h-screen` con `overflow-hidden`: la ventana deja de scrollear como un
+    // todo y cada panel se hace cargo del suyo. Sin esto el menú se iba hacia
+    // arriba al bajar por una lista larga de gastos.
+    <div className="flex h-screen overflow-hidden">
+      <aside className="hidden w-64 shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 md:flex">
+        <div className="mb-5 shrink-0 px-2">
           <p className="text-lg font-semibold tracking-tight">Finanzas</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">Control personal</p>
         </div>
 
-        <Boton tamano="sm" className="mb-5" onClick={abrir} title="Ctrl+Shift+G">
+        <Boton tamano="sm" className="mb-5 shrink-0" onClick={abrir} title="Ctrl+Shift+G">
           ⚡ Gasto rápido
         </Boton>
 
-        <nav className="flex-1 space-y-5 overflow-y-auto">
+        {/* `min-h-0` es lo que hace que esto scrollee: sin él, un hijo flex no
+            se achica por debajo de su contenido y la navegación empujaría el
+            botón de tema fuera de la pantalla en ventanas bajas. */}
+        <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto">
           {NAVEGACION.map((grupo) => (
             <div key={grupo.titulo}>
               <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
@@ -59,7 +65,7 @@ export function Shell() {
         <button
           type="button"
           onClick={() => setTema(alternarTema())}
-          className="mt-4 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+          className="mt-4 flex shrink-0 items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           <span aria-hidden>{tema === "oscuro" ? "☀️" : "🌙"}</span>
           {tema === "oscuro" ? "Modo claro" : "Modo oscuro"}
@@ -87,7 +93,9 @@ export function Shell() {
         ))}
       </nav>
 
-      <main className="flex-1 overflow-x-hidden px-4 pb-20 pt-6 md:px-8 md:pb-8">
+      {/* El único panel que scrollea con el contenido. `min-w-0` evita que una
+          tabla ancha estire el flex y empuje al menú. */}
+      <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-20 pt-6 md:px-8 md:pb-8">
         <div className="mx-auto max-w-6xl">
           <AvisoActualizacion />
           <AvisoRespaldo />

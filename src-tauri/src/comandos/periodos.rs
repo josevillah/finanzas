@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use chrono::Datelike;
+use rusqlite::Connection;
 use tauri::State;
 
 use crate::dominio::dinero::Monto;
@@ -175,24 +176,42 @@ pub fn resumen_periodo(
     anio: i32,
     mes: u32,
 ) -> Resultado<ResumenPeriodo> {
+    let guard = estado.conn();
+    armar_resumen(&guard, anio, mes)
+}
+
+/// Núcleo del resumen. Recibe `&Connection` para poder cubrirlo con tests sin
+/// levantar Tauri, como el resto de los comandos.
+pub fn armar_resumen(conn: &Connection, anio: i32, mes: u32) -> Resultado<ResumenPeriodo> {
     validar_mes(mes)?;
 
-    let guard = estado.conn();
-    let periodo = repos::periodos::obtener_o_crear(&guard, anio, mes)?;
+    let periodo = repos::periodos::obtener_o_crear(conn, anio, mes)?;
 
     let (total_gastos, ingresos_extra, total_cuotas, total_hormiga, n_movimientos) =
-        repos::movimientos::totales(&guard, periodo.id)?;
-    let por_categoria = repos::movimientos::por_categoria(&guard, periodo.id)?;
+        repos::movimientos::totales(conn, periodo.id)?;
+    let por_categoria = repos::movimientos::por_categoria(conn, periodo.id)?;
 
     // Los ingresos del período (sueldo + otros) se suman a los ingresos que
     // hayas registrado como movimiento suelto.
     let total_ingresos = periodo.sueldo_liquido + periodo.otros_ingresos + ingresos_extra;
+    let balance = total_ingresos - total_gastos;
+
+    // El corte es por fecha y no por período: apartar no pertenece a un mes
+    // contable —se puede apartar con el mes ya cerrado—, así que lo que
+    // corresponde es el rango de días que el usuario está mirando.
+    let apartado_neto = repos::movimientos_ahorro::neto_en_rango(
+        conn,
+        &fechas::a_iso(fechas::primer_dia(anio, mes)?),
+        &fechas::a_iso(fechas::ultimo_dia(anio, mes)?),
+    )?;
 
     Ok(ResumenPeriodo {
         total_ingresos,
         ingresos_extra,
         total_gastos,
-        balance: total_ingresos - total_gastos,
+        balance,
+        apartado_neto,
+        libre: balance - apartado_neto,
         total_cuotas,
         total_hormiga,
         n_movimientos,

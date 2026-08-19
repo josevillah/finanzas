@@ -160,12 +160,14 @@ export const RELACIONES: Record<EventoDominio, readonly Raiz[]> = {
 
   presupuesto: ["presupuesto"],
 
-  // Apartar plata o ajustar el saldo inicial no alimenta ningún otro cálculo:
-  // el presupuesto y los reportes salen de los movimientos, que no se tocan.
-  // La dependencia va al revés, y está en POR_MOVIMIENTO.
+  // Apartar plata o ajustar el saldo inicial no alimenta el presupuesto ni los
+  // reportes: esos salen de los movimientos, que no se tocan. La dependencia
+  // va al revés y está en POR_MOVIMIENTO.
   //
-  // Las metas sí: su avance es el saldo de la cuenta a la que apuntan.
-  cuenta: ["cuentas", "metas"],
+  // Sí alimentan otras dos vistas: las metas, cuyo avance es el saldo de la
+  // cuenta a la que apuntan, y el resumen del mes, que desde la 0013 muestra
+  // cuánto de su balance se fue a un ahorro.
+  cuenta: ["cuentas", "metas", "resumen-periodo"],
 
   // Una meta no mueve plata: no invalida saldos ni nada del mes. Es el único
   // evento del dominio que solo se refresca a sí mismo.

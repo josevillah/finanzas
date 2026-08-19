@@ -16,7 +16,7 @@ use crate::repos;
 use crate::EstadoApp;
 
 /// Las tablas con datos del usuario, en orden de dependencia.
-const TABLAS: [&str; 10] = [
+const TABLAS: [&str; 11] = [
     "periodos",
     "categorias",
     "servicios",
@@ -26,6 +26,7 @@ const TABLAS: [&str; 10] = [
     "presupuestos",
     "cuentas",
     "notas_ahorro",
+    "movimientos_ahorro",
     "metas",
 ];
 
@@ -261,6 +262,7 @@ pub fn exportar_json(estado: State<'_, EstadoApp>, destino: String) -> Resultado
         presupuestos: repos::presupuestos::listar_todos(&guard)?,
         cuentas: repos::cuentas::listar(&guard, false)?,
         notas_ahorro: repos::notas_ahorro::listar_todas(&guard)?,
+        movimientos_ahorro: repos::movimientos_ahorro::listar_todos(&guard)?,
         metas: repos::metas::listar(&guard, None)?,
         saldo_inicial: repos::configuracion::obtener_monto(
             &guard,
@@ -277,6 +279,7 @@ pub fn exportar_json(estado: State<'_, EstadoApp>, destino: String) -> Resultado
         + respaldo.presupuestos.len()
         + respaldo.cuentas.len()
         + respaldo.notas_ahorro.len()
+        + respaldo.movimientos_ahorro.len()
         + respaldo.metas.len()) as i64;
 
     let texto = serde_json::to_string_pretty(&respaldo)

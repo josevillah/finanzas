@@ -498,3 +498,28 @@ fn el_reinicio_borra_las_metas() {
     assert_eq!(contar(&conn, "metas"), 0);
     assert_eq!(contar(&conn, "cuentas"), 0);
 }
+
+#[test]
+fn el_reinicio_borra_el_historial_de_ahorro() {
+    use finanzas_lib::comandos::cuentas::{crear, fijar_inicial, mover, Direccion};
+    use finanzas_lib::modelos::cuenta::NuevaCuenta;
+
+    let conn = base();
+
+    fijar_inicial(&conn, 800_000).unwrap();
+    let viaje = crear(&conn, &NuevaCuenta { nombre: "Viaje".into() }).unwrap();
+    mover(&conn, viaje, 300_000, Direccion::Apartar).unwrap();
+    mover(&conn, viaje, 100_000, Direccion::Retirar).unwrap();
+    assert_eq!(contar(&conn, "movimientos_ahorro"), 2);
+
+    // Nadie nombra `movimientos_ahorro` en el reinicio: las cuentas se van y el
+    // CASCADE se lleva su historial. Esto lo verifica.
+    vaciar(&conn, false).unwrap();
+
+    assert_eq!(contar(&conn, "cuentas"), 0);
+    assert_eq!(
+        contar(&conn, "movimientos_ahorro"),
+        0,
+        "el CASCADE tiene que llevarse el historial con la cuenta"
+    );
+}

@@ -72,6 +72,11 @@ const MIGRACIONES: &[(i32, &str, &str)] = &[
         "0012_metas",
         include_str!("../../migrations/0012_metas.sql"),
     ),
+    (
+        13,
+        "0013_movimientos_ahorro",
+        include_str!("../../migrations/0013_movimientos_ahorro.sql"),
+    ),
 ];
 
 /// Versión de esquema esperada por este binario.

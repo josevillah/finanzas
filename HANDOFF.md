@@ -55,12 +55,12 @@ src/                       frontend, solo presentación
     configuracion/         preferencias y reinicio de datos
 
 src-tauri/
-  migrations/*.sql         12 migraciones, embebidas con include_str!
+  migrations/*.sql         13 migraciones, embebidas con include_str!
   src/dominio/             lógica pura: dinero, fechas, amortización, csv, metas
   src/modelos/             structs de tabla + DTOs (serde, snake_case)
   src/repos/               TODO el SQL, nada de SQL fuera de acá
   src/comandos/            73 comandos de Tauri, capa delgada
-  tests/                   13 archivos de integración contra SQLite en memoria
+  tests/                   14 archivos de integración contra SQLite en memoria
 ```
 
 **Capas:** `comandos` valida entrada y abre transacciones → `repos` ejecuta SQL →
@@ -141,6 +141,12 @@ transacción, idempotente, corre en cada arranque. Para agregar una: crear el
 - Proyección contra el balance promedio de los últimos 3 meses cerrados
 - Totales del conjunto: objetivos activos contra lo realmente ahorrado
 - Filtro por activas / cumplidas / archivadas; cumplir no borra
+
+### Historial de apartados (migración 0013)
+- Cada apartar y cada retirar deja su fila en `movimientos_ahorro`
+- El Resumen del mes explica el balance con una línea de contexto:
+  "apartaste $90.000 este mes · libre $9.398"
+- El balance no cambia: sigue siendo ingresos − gastos
 
 ---
 
@@ -249,6 +255,25 @@ castigaría a quien lleva poco tiempo usando la app.
 varias metas los números no se suman, y la pantalla lo dice: el total del
 conjunto se muestra aparte.
 
+**`movimientos_ahorro` es un registro, no la fuente de verdad del saldo.**
+`cuentas.saldo` sigue siendo el valor guardado y nadie lo recalcula sumando el
+historial: si divergieran, manda el saldo. Los apartados anteriores a la 0013
+no existen y no se inventan, así que los meses viejos no muestran la línea de
+contexto. Y un apartado **no es un gasto**: no entra en `movimientos`, ni en el
+resumen, ni en el presupuesto, ni en los reportes, ni en el disponible. Solo
+cambia de bolsillo.
+
+**El apartado del mes se corta por fecha, no por período.** El resto de la app
+agrupa por `periodo_id`, pero apartar no pertenece a un mes contable —se puede
+apartar con el mes ya cerrado—, así que el neto se calcula sobre el rango de
+días que el usuario está mirando. La fecha del registro es siempre la de hoy:
+no hay forma de anotar un apartado con fecha anterior.
+
+**La línea de contexto no muestra "libre" cuando se retiró plata.** Con neto
+negativo, `balance − neto` da un número mayor que el balance y se lee como si
+hubiera aparecido plata, cuando lo que pasó es que salió de una reserva. En ese
+caso se dice solo "retiraste $X de tus ahorros este mes".
+
 **Dos ramas numerando migraciones a la vez piden un desvío.** Metas se
 desarrolló con la 0012 mientras la 0011 (notas de ahorro) vivía en otra rama.
 El runner guarda el estado en `PRAGMA user_version`, así que una base que
@@ -264,8 +289,8 @@ migrar: restaurar desde la app vuelve a migrar y no sirve.
 
 ## Verificación
 
-- `cargo test` → **253 tests, todos verdes**
-  (unitarios en `dominio` + 12 archivos de integración contra SQLite en memoria)
+- `cargo test` → **305 tests, todos verdes**
+  (unitarios en `dominio` + 14 archivos de integración contra SQLite en memoria)
 - `npm run typecheck` → limpio en `src/` y `vite.config.ts`
 - `npm run build` → genera `.msi` y `.exe` sin warnings del código propio
 

@@ -52,7 +52,17 @@ pub struct ResumenPeriodo {
     pub ingresos_extra: Monto,
     pub total_gastos: Monto,
     /// total_ingresos - total_gastos.
+    ///
+    /// Apartar plata **no** entra acá: no sale del patrimonio, solo cambia de
+    /// bolsillo. Para eso están los dos campos de abajo.
     pub balance: Monto,
+    /// Apartado menos retirado en las cuentas de ahorro durante el mes.
+    /// Negativo si se sacó más de lo que se guardó; 0 si no hubo movimiento.
+    pub apartado_neto: Monto,
+    /// `balance - apartado_neto`: lo que quedó del mes sin contar lo que ya se
+    /// mandó a un ahorro. Es contexto para leer el balance, no un balance
+    /// distinto.
+    pub libre: Monto,
     /// Gastos que son pago de cuotas.
     pub total_cuotas: Monto,
     /// Gastos de categorías de tipo hormiga.

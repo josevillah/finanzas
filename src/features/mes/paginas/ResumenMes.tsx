@@ -67,6 +67,16 @@ export function ResumenMes() {
         />
       </div>
 
+      {/* Sin apartados no hay nada que aclarar: no se pinta la tarjeta y la
+          grilla queda pegada a lo que sigue, sin hueco. */}
+      {data.apartado_neto !== 0 ? (
+        <ContextoAhorro
+          balance={data.balance}
+          apartadoNeto={data.apartado_neto}
+          libre={data.libre}
+        />
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="tarjeta lg:col-span-1">
           <EditorIngresos anio={anio} mes={mes} bloqueado={cerrado} />
@@ -117,6 +127,66 @@ export function ResumenMes() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Explica un balance que se lee mal.
+ *
+ * El balance es correcto —ingresos menos gastos— pero se interpreta como "lo
+ * que me queda libre", y parte de eso puede haberse ido a un ahorro el mismo
+ * mes. Va en su propia tarjeta ancha y no dentro de la de Balance: la frase no
+ * entra en un cuarto de fila sin partirse, y acá además hay lugar para decir
+ * por qué el balance no baja al apartar.
+ *
+ * Cuando el neto es negativo se sacó plata de los ahorros. Ahí no se muestra
+ * "libre": sería un número mayor que el balance y se leería como si hubiera
+ * aparecido plata, cuando lo que pasó es que salió de una reserva.
+ */
+function ContextoAhorro({
+  balance,
+  apartadoNeto,
+  libre,
+}: {
+  balance: number;
+  apartadoNeto: number;
+  libre: number;
+}) {
+  const retiro = apartadoNeto < 0;
+
+  return (
+    <section className="tarjeta flex flex-wrap items-center justify-between gap-x-8 gap-y-3">
+      <div className="min-w-0 max-w-3xl">
+        <p className="etiqueta">{retiro ? "Retiros de tus ahorros" : "Apartado este mes"}</p>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+          {retiro ? (
+            <>
+              Este mes sacaste <Moneda monto={-apartadoNeto} className="font-medium" /> de tus
+              ahorros. No aparece en el balance porque no es un ingreso: es plata que ya era tuya.
+            </>
+          ) : (
+            <>
+              De tu balance de <Moneda monto={balance} className="font-medium" /> apartaste{" "}
+              <Moneda monto={apartadoNeto} className="font-medium" /> a tus ahorros. El balance no
+              baja por eso: apartar no es un gasto, la plata sigue siendo tuya y solo cambió de
+              bolsillo.
+            </>
+          )}
+        </p>
+      </div>
+
+      {!retiro ? (
+        // `ml-auto` para que al envolverse en ventanas angostas siga pegado al
+        // borde derecho, en vez de quedar a la izquierda con el texto alineado
+        // a la derecha.
+        <div className="ml-auto shrink-0 text-right">
+          <p className="etiqueta">Libre</p>
+          <p className="mt-1 text-2xl font-semibold">
+            <Moneda monto={libre} />
+          </p>
+        </div>
+      ) : null}
+    </section>
   );
 }
 

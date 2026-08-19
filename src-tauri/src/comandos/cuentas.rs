@@ -8,6 +8,7 @@ use crate::dominio::dinero::Monto;
 use crate::dominio::fechas;
 use crate::error::{AppError, Resultado};
 use crate::modelos::cuenta::{CuentaConNotas, DesgloseSaldo, NuevaCuenta, ResumenCuentas};
+use crate::modelos::movimiento_ahorro::TipoMovimientoAhorro;
 use crate::modelos::nota_ahorro::NotaAhorro;
 use crate::repos;
 use crate::EstadoApp;
@@ -163,11 +164,25 @@ pub enum Direccion {
     Retirar,
 }
 
+impl From<Direccion> for TipoMovimientoAhorro {
+    fn from(direccion: Direccion) -> Self {
+        match direccion {
+            Direccion::Apartar => TipoMovimientoAhorro::Apartar,
+            Direccion::Retirar => TipoMovimientoAhorro::Retirar,
+        }
+    }
+}
+
 /// Apartar y retirar no cambian el patrimonio: mueven plata entre "puedo
 /// gastarla" y "no la quiero gastar".
 ///
 /// Apartar se valida contra el disponible **calculado**, que es el único que
 /// existe; retirar, contra el saldo de la propia cuenta.
+///
+/// Cada cruce deja su fila en `movimientos_ahorro`. El registro y el ajuste
+/// del saldo van sobre la misma conexión —que desde los comandos es una
+/// transacción—, así que o quedan los dos o no queda ninguno: un historial que
+/// no cuadre con el saldo sería peor que no tener historial.
 pub fn mover(
     conn: &Connection,
     ahorro_id: i64,
@@ -200,6 +215,18 @@ pub fn mover(
             repos::cuentas::ajustar_saldo(conn, ahorro_id, -monto)?;
         }
     }
+
+    // La fecha es la del día en que se mueve la plata, igual que el
+    // `actualizado_en` de la cuenta. No hay forma de apartar con fecha
+    // anterior, y por eso los meses previos a esta tabla quedan en cero.
+    repos::movimientos_ahorro::insertar(
+        conn,
+        ahorro_id,
+        &fechas::a_iso(fechas::hoy()),
+        monto,
+        direccion.into(),
+        None,
+    )?;
 
     Ok(())
 }

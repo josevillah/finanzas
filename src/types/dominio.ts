@@ -159,7 +159,12 @@ export interface ResumenPeriodo extends Periodo {
   total_ingresos: number;
   ingresos_extra: number;
   total_gastos: number;
+  /** ingresos − gastos. Apartar plata no entra acá: no es un gasto. */
   balance: number;
+  /** Apartado − retirado en cuentas de ahorro durante el mes. */
+  apartado_neto: number;
+  /** `balance − apartado_neto`. Contexto para leer el balance, no otro balance. */
+  libre: number;
   total_cuotas: number;
   total_hormiga: number;
   n_movimientos: number;

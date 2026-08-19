@@ -633,8 +633,9 @@ fn las_notas_de_ahorro_cuentan_como_registros_del_usuario() {
 
     con_notas(&conn);
 
-    // Una cuenta y una nota.
-    assert_eq!(contar_registros(&conn).unwrap(), antes + 2);
+    // Una cuenta, una nota, y el apartado que dejó a esa cuenta con saldo:
+    // desde la 0013 cada cruce de plata hacia un ahorro deja su fila.
+    assert_eq!(contar_registros(&conn).unwrap(), antes + 3);
 }
 
 #[test]
@@ -768,5 +769,78 @@ fn las_metas_se_exportan_a_csv_con_su_encabezado() {
     let (contenido, filas) = tabla_a_csv(&conn, "metas").unwrap();
 
     assert!(contenido.starts_with("id,nombre,monto_objetivo,"));
+    assert_eq!(filas, 0);
+}
+
+#[test]
+fn el_historial_de_ahorro_sobrevive_a_un_ciclo_de_respaldo() {
+    use finanzas_lib::comandos::cuentas::{crear as crear_cuenta, mover, Direccion};
+    use finanzas_lib::modelos::cuenta::NuevaCuenta;
+
+    let dir = carpeta("movimientos-ahorro-ida-y-vuelta");
+    let archivo = dir.join("respaldo.db");
+
+    let origen = base();
+    con_datos(&origen);
+    let viaje = crear_cuenta(&origen, &NuevaCuenta { nombre: "Viaje".into() }).unwrap();
+    mover(&origen, viaje, 90_000, Direccion::Apartar).unwrap();
+    mover(&origen, viaje, 30_000, Direccion::Retirar).unwrap();
+
+    origen.backup(DatabaseName::Main, &archivo, None).unwrap();
+
+    let mut destino = base();
+    destino
+        .restore(
+            DatabaseName::Main,
+            &archivo,
+            None::<fn(rusqlite::backup::Progress)>,
+        )
+        .unwrap();
+
+    let filas = repos::movimientos_ahorro::listar_todos(&destino).unwrap();
+    assert_eq!(filas.len(), 2, "el apartado y el retiro viajan los dos");
+    assert_eq!(filas[0].monto, 90_000);
+    assert_eq!(filas[1].monto, 30_000);
+    assert_eq!(
+        repos::cuentas::obtener(&destino, viaje).unwrap().saldo,
+        60_000,
+        "el saldo es el guardado, no la suma del historial"
+    );
+}
+
+#[test]
+fn un_respaldo_anterior_al_historial_de_ahorro_sigue_siendo_valido() {
+    // La tabla no está en TABLAS_IDENTIDAD: un respaldo de una versión previa
+    // no la tiene y sigue siendo bueno.
+    let dir = carpeta("respaldo-sin-movimientos-ahorro");
+    let archivo = dir.join("v12.db");
+
+    let mut vieja = Connection::open(&archivo).unwrap();
+    migraciones::ejecutar_hasta(&mut vieja, 12).unwrap();
+    drop(vieja);
+
+    assert_eq!(validar_respaldo(&archivo).unwrap(), 12);
+
+    let mut destino = base();
+    destino
+        .restore(
+            DatabaseName::Main,
+            &archivo,
+            None::<fn(rusqlite::backup::Progress)>,
+        )
+        .unwrap();
+    migraciones::ejecutar(&mut destino).unwrap();
+
+    assert!(repos::movimientos_ahorro::listar_todos(&destino)
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
+fn el_historial_de_ahorro_se_exporta_a_csv_con_su_encabezado() {
+    let conn = base();
+    let (contenido, filas) = tabla_a_csv(&conn, "movimientos_ahorro").unwrap();
+
+    assert!(contenido.starts_with("id,cuenta_id,fecha,monto,tipo,nota"));
     assert_eq!(filas, 0);
 }

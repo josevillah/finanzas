@@ -9,6 +9,7 @@ pub mod cuota;
 pub mod deuda;
 pub mod meta;
 pub mod movimiento;
+pub mod movimiento_ahorro;
 pub mod nota_ahorro;
 pub mod periodo;
 pub mod presupuesto;
@@ -29,6 +30,7 @@ pub use meta::{EstadoMeta, Meta, MetaDetalle, NuevaMeta, ResumenMetas};
 pub use movimiento::{
     FiltroMovimientos, MedioPago, Movimiento, MovimientoDetalle, NuevoMovimiento, TipoMovimiento,
 };
+pub use movimiento_ahorro::{MovimientoAhorro, TipoMovimientoAhorro};
 pub use nota_ahorro::{NotaAhorro, NuevaNota};
 pub use periodo::{GastoPorCategoria, Periodo, ResumenPeriodo};
 pub use presupuesto::{
